@@ -54,13 +54,18 @@ def mock_config_content():
     """
     Mocks the config.yaml file content for tests by reading from test_config.yaml.
     This fixture is NOT autouse, so tests must explicitly request it.
+    It also patches CONFIG_FILE_PATH in config_loader to ensure the mocked file is used.
     """
     with open(TEST_CONFIG_FILE_PATH, 'r') as f:
         test_config_data = f.read()
-    with patch("builtins.open", mock_open(read_data=test_config_data)) as mock_file:
-        # Also patch the CONFIG_FILE_PATH in config_loader to point to our mock
-        with patch("cogni_agents.config_loader.CONFIG_FILE_PATH", "mocked_config.yaml"):
-            yield mock_file
+
+    # Patch builtins.open to return our test config data
+    with patch("builtins.open", mock_open(read_data=test_config_data)) as mock_file_open:
+        # Patch CONFIG_FILE_PATH in config_loader to ensure it tries to open the mocked file
+        with patch("cogni_agents.config_loader.CONFIG_FILE_PATH", "mocked_config.yaml", create=True):
+            # Also patch os.getenv to return our mocked config path if COGNIA_CONFIG_PATH is requested
+            with patch("os.getenv", return_value="mocked_config.yaml") as mock_os_getenv:
+                yield mock_file_open
 
 
 # --- Fixtures for Mocking External Dependencies ---
