@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch, mock_open
+import os
 
 from cogni_agents.config_loader import reload_config, CONFIG_FILE_PATH
 from cogni_agents.agent_registry import reload_agents, _agents, _loaded as agents_loaded_flag, _lock as agents_lock
@@ -10,65 +11,8 @@ from cogni_agents.schemas import SummaryOutput, SentimentOutput
 from pydantic_ai.models.openai import OpenAIChatModel
 
 
-# --- Global Test Configuration ---
-
-# Sample config content for testing various modules
-SAMPLE_CONFIG_CONTENT = """
-global_llm_settings:
-  model: "gemini-2.5-flash"
-  temperature: 0.5
-
-agents:
-  - name: "test_agent_1"
-    prompt: "Test prompt 1"
-    llm_model: "model-1"
-    output_schema: "summary"
-  - name: "test_agent_2"
-    prompt: "Test prompt 2"
-    llm_model: "model-2"
-    output_schema: "sentiment"
-  - name: "agent_no_schema"
-    prompt: "No schema"
-    llm_model: "model-3"
-
-workflows:
-  - name: "test_workflow_1"
-    steps:
-      - agent: "test_agent_1"
-        input_from: "payload.text"
-        save_as: "step1_result"
-  - name: "test_workflow_2"
-    steps:
-      - agent: "test_agent_2"
-        input_from: "results.step1_result.summary"
-        save_as: "step2_result"
-  - name: "test_workflow_with_payload_template"
-    steps:
-      - agent: "agent_no_schema"
-        input_from: "payload.original_text"
-        save_as: "generic_output"
-  - name: "multi_step_workflow" # Added for workflow_engine test
-    steps:
-      - agent: "test_agent_1"
-        input_from: "payload.content"
-        save_as: "summary"
-      - agent: "test_agent_2"
-        input_from: "results.summary.summary"
-        save_as: "sentiment"
-
-templates:
-  test_workflow_1: "Summary: {{ results.step1_result.summary }}"
-  test_workflow_with_payload_template: "Original: {{ payload.original_text }}. Output: {{ results.generic_output }}"
-  test_workflow_no_template: null # Explicitly no template
-  multi_step_workflow: |
-    ## Multi-Step Report
-    Summary: {{ results.summary.summary }}
-    Sentiment: {{ results.sentiment.sentiment }} ({{ results.sentiment.rationale }})
-
-defaults:
-  max_tokens: 1024
-  language: "en"
-"""
+# Path to the test configuration file
+TEST_CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), "test_config.yaml")
 
 # --- Fixtures for State Management ---
 
@@ -108,11 +52,15 @@ def reset_all_modules_state():
 @pytest.fixture
 def mock_config_content():
     """
-    Mocks the config.yaml file content for tests.
+    Mocks the config.yaml file content for tests by reading from test_config.yaml.
     This fixture is NOT autouse, so tests must explicitly request it.
     """
-    with patch("builtins.open", mock_open(read_data=SAMPLE_CONFIG_CONTENT)) as mock_file:
-        yield mock_file
+    with open(TEST_CONFIG_FILE_PATH, 'r') as f:
+        test_config_data = f.read()
+    with patch("builtins.open", mock_open(read_data=test_config_data)) as mock_file:
+        # Also patch the CONFIG_FILE_PATH in config_loader to point to our mock
+        with patch("cogni_agents.config_loader.CONFIG_FILE_PATH", "mocked_config.yaml"):
+            yield mock_file
 
 
 # --- Fixtures for Mocking External Dependencies ---
@@ -232,7 +180,7 @@ def mock_get_template():
             "test_workflow_1": "Summary: {{ results.step1_result.summary }}",
             "test_workflow_with_payload_template": "Original: {{ payload.original_text }}. Output: {{ results.generic_output }}",
             "test_workflow_no_template": None,
-            "multi_step_workflow": "Summary: {{ results.summary_result.summary }}\nSentiment: {{ results.sentiment_result.sentiment }}"
+            "multi_step_workflow": "Summary: {{ results.summary.summary }}\nSentiment: {{ results.sentiment.sentiment }}"
         }.get
         yield mock_gt
 

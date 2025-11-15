@@ -1,0 +1,54 @@
+global_llm_settings:
+  model: "test-model"
+  temperature: 0.5
+
+agents:
+  - name: "test_agent_1"
+    prompt: "Test prompt 1"
+    llm_model: "model-1"
+    output_schema: "summary"
+  - name: "test_agent_2"
+    prompt: "Test prompt 2"
+    llm_model: "model-2"
+    output_schema: "sentiment"
+  - name: "agent_no_schema"
+    prompt: "No schema"
+    llm_model: "model-3"
+
+workflows:
+  - name: "test_workflow_1"
+    steps:
+      - agent: "test_agent_1"
+        input_from: "payload.text"
+        save_as: "step1_result"
+  - name: "test_workflow_2"
+    steps:
+      - agent: "test_agent_2"
+        input_from: "results.step1_result.summary"
+        save_as: "step2_result"
+  - name: "test_workflow_with_payload_template"
+    steps:
+      - agent: "agent_no_schema"
+        input_from: "payload.original_text"
+        save_as: "generic_output"
+  - name: "multi_step_workflow" # Added for workflow_engine test
+    steps:
+      - agent: "test_agent_1"
+        input_from: "payload.content"
+        save_as: "summary"
+      - agent: "test_agent_2"
+        input_from: "results.summary.summary"
+        save_as: "sentiment"
+
+templates:
+  test_workflow_1: "Summary: {{ results.step1_result.summary }}"
+  test_workflow_with_payload_template: "Original: {{ payload.original_text }}. Output: {{ results.generic_output }}"
+  test_workflow_no_template: null # Explicitly no template
+  multi_step_workflow: |
+    ## Multi-Step Report
+    Summary: {{ results.summary.summary }}
+    Sentiment: {{ results.sentiment.sentiment }} ({{ results.sentiment.rationale }})
+
+defaults:
+  max_tokens: 1024
+  language: "en"
