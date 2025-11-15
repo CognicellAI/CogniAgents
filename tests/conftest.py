@@ -51,9 +51,6 @@ def mock_pydantic_ai_agent_run():
     Mocks the `run` method of PydanticAIAgent to control LLM responses
     based on the `output_type` of the agent instance.
     """
-    # This is the mock we will assert against.
-    mock_run = AsyncMock()
-
     async def side_effect(self, input_text: str): # `self` here is the PydanticAIAgent instance
         mock_result = MagicMock()
         # We can access the output_type from the instance
@@ -65,8 +62,7 @@ def mock_pydantic_ai_agent_run():
             mock_result.output = f"Mocked generic output for: {input_text[:20]}..."
         return mock_result
 
-    mock_run.side_effect = side_effect
-
-    # Patch the `run` method on the class prototype
-    with patch("pydantic_ai.Agent.run", new=mock_run):
+    # Patch the `run` method on the class prototype using autospec=True
+    # This ensures that the mock has the correct signature and `self` is passed.
+    with patch("pydantic_ai.Agent.run", side_effect=side_effect, autospec=True) as mock_run:
         yield mock_run
