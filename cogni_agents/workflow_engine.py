@@ -1,8 +1,10 @@
 import asyncio
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from .config_loader import get_workflow_configs
+from jinja2 import Template
+
+from .config_loader import get_workflow_configs, get_template
 from .agent_registry import ensure_agents_loaded, get_agent
 
 logger = logging.getLogger(__name__)
@@ -125,6 +127,35 @@ def _resolve_path(ctx: Dict[str, Any], path: str) -> Any:
         else:
             raise TypeError(f"Cannot resolve path '{path}'. '{'.'.join(parts[:i])}' is not a dictionary.")
     return val
+
+def render_workflow_output(workflow_name: str, context: Dict[str, Any]) -> str:
+    """
+    Renders the final output of a workflow using a Jinja2 template if available.
+
+    Args:
+        workflow_name: The name of the workflow.
+        context: The final context dictionary from the workflow execution,
+                 containing 'payload' and 'results'.
+
+    Returns:
+        The rendered string output. If no template is found for the workflow,
+        it returns a string representation of the workflow results.
+    """
+    template_str = get_template(workflow_name)
+    if not template_str:
+        logger.debug(f"No template found for workflow '{workflow_name}'. Returning string representation of results.")
+        return str(context.get("results", {}))
+
+    logger.debug(f"Rendering output for workflow '{workflow_name}' using template.")
+    try:
+        template = Template(template_str)
+        # Pass both results and payload to the template context
+        return template.render(results=context.get("results", {}), payload=context.get("payload", {}))
+    except Exception as e:
+        logger.error(f"Error rendering template for workflow '{workflow_name}': {e}")
+        # Fallback to string representation of results on template rendering error
+        return str(context.get("results", {}))
+
 
 def reload_workflows():
     """
