@@ -108,7 +108,16 @@ The core of CogniAgents is the `config.yaml` file. This file defines your LLM se
       language: "en"
     ```
 
-2.  **Set up API Credentials**:
+2.  **Specify Configuration File Location (Optional)**:
+    By default, CogniAgents looks for `config.yaml` in the current working directory. You can specify an alternative path using the `COGNIA_CONFIG_PATH` environment variable:
+
+    ```bash
+    export COGNIA_CONFIG_PATH="/path/to/your/custom_config.yaml"
+    # Or for a single command:
+    COGNIA_CONFIG_PATH="/path/to/your/custom_config.yaml" python your_script.py
+    ```
+
+3.  **Set up API Credentials**:
     CogniAgents uses environment variables for API credentials, which are loaded from a `.env` file if present.
     Create a `.env` file in the root of your project (and ensure it's in your `.gitignore`):
 
@@ -228,7 +237,7 @@ pytest tests/
 
 #### Hot Reloading Configuration
 
-During development, you can call `cogni_agents.config_loader.reload_config()` to force the framework to re-read `config.yaml` without restarting your application. Similarly, `cogni_agents.agent_registry.reload_agents()` and `cogni_agents.workflow_engine.reload_workflows()` can be used to refresh agents and workflows.
+During development, you can call `cogni_agents.config_loader.reload_config()` to force the framework to re-read `config.yaml` (or the file specified by `COGNIA_CONFIG_PATH`) without restarting your application. Similarly, `cogni_agents.agent_registry.reload_agents()` and `cogni_agents.workflow_engine.reload_workflows()` can be used to refresh agents and workflows.
 
 ## Project Structure
 
@@ -238,7 +247,7 @@ During development, you can call `cogni_agents.config_loader.reload_config()` to
 │   ├── __init__.py
 │   ├── agent_registry.py       # Manages loading and caching of CogniAgent instances
 │   ├── cogni_agent.py          # Wrapper around PydanticAI Agent
-│   ├── config_loader.py        # Loads and parses config.yaml
+│   ├── config_loader.py        # Loads and parses config.yaml (or COGNIA_CONFIG_PATH)
 │   ├── schemas.py              # Defines Pydantic output schemas
 │   └── workflow_engine.py      # Orchestrates agent execution based on workflows
 ├── docs/
@@ -249,10 +258,11 @@ During development, you can call `cogni_agents.config_loader.reload_config()` to
 │   ├── test_cogni_agent.py
 │   ├── test_config_loader.py
 │   ├── test_integration.py
-│   └── test_workflow_engine.py
+│   ├── test_workflow_engine.py
+│   └── test_config.yaml        # Test-specific configuration file
 ├── .env.example                # Example .env file (DO NOT COMMIT .env)
 ├── .gitignore
-├── config.yaml                 # Main configuration file
+├── config.yaml                 # Main configuration file (default)
 ├── pyproject.toml              # Project metadata and dependencies
 └── README.md                   # This file
 ```
