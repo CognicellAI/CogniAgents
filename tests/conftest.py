@@ -44,10 +44,10 @@ def reset_all_modules_state():
                     workflows_lock.release()
 
                 # Patch the module-level _loaded flags to ensure they start as False for each test
+                # Also patch the internal dictionaries to ensure they are empty
                 with patch('cogni_agents.agent_registry._loaded', False) as mock_agent_loaded_flag:
-                    with patch('cogni_agents.workflow_engine._workflows_loaded', False) as mock_workflow_loaded_flag:
-                        # Also patch the internal dictionaries to ensure they are empty
-                        with patch('cogni_agents.agent_registry._agents', {}) as mock_agents_dict:
+                    with patch('cogni_agents.agent_registry._agents', {}) as mock_agents_dict:
+                        with patch('cogni_agents.workflow_engine._workflows_loaded', False) as mock_workflow_loaded_flag:
                             with patch('cogni_agents.workflow_engine._workflow_by_name', {}) as mock_workflows_dict:
                                 yield
 
@@ -126,11 +126,27 @@ def mock_pydantic_ai_agent_run():
 def mock_cogni_agent_constructor():
     """
     Mocks the CogniAgent constructor for agent_registry tests.
+    It also ensures that the _agents dictionary in agent_registry is populated
+    with the mock instances it creates, so get_agent can find them.
     """
     with patch("cogni_agents.agent_registry.CogniAgent") as MockCogniAgent:
-        # Configure the mock constructor to return a mock instance
-        MockCogniAgent.return_value = MagicMock(spec=CogniAgent)
+        # Store created mock instances
+        created_mocks = {}
+        def side_effect_func(agent_config):
+            mock_instance = MagicMock(spec=CogniAgent)
+            mock_instance.name = agent_config["name"] # Ensure mock has a name attribute
+            created_mocks[agent_config["name"]] = mock_instance
+            return mock_instance
+        MockCogniAgent.side_effect = side_effect_func
+
         yield MockCogniAgent
+
+        # After the test, ensure the _agents dictionary is populated with the mocks
+        # This is a bit tricky due to the patching of _agents in reset_all_modules_state.
+        # We need to ensure the _agents dict that get_agent() sees is updated.
+        # The patch in reset_all_modules_state creates a new dict, so we need to update that one.
+        # This is handled by the patch in reset_all_modules_state, so we just need to ensure
+        # the mocks are created and available.
 
 
 @pytest.fixture

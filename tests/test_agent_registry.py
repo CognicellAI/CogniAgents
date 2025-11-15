@@ -111,7 +111,7 @@ async def test_get_agent_success(mock_get_agent_configs, mock_cogni_agent_constr
         with patch('cogni_agents.agent_registry._agents', {}) as mock_module_agents:
             await ensure_agents_loaded()
             # Manually populate _agents for get_agent to find them
-            mock_module_agents.update(_agents) # Copy the agents created by ensure_agents_loaded
+            mock_module_agents.update({k: v for k, v in _agents.items() if k in mock_module_agents}) # Only update if key exists
             agent = get_agent("agent1")
             assert agent is mock_module_agents["agent1"]
             assert isinstance(agent, MagicMock)
@@ -132,7 +132,7 @@ async def test_get_agent_not_found(mock_get_agent_configs, mock_cogni_agent_cons
     with patch('cogni_agents.agent_registry._loaded', False) as mock_module_loaded:
         with patch('cogni_agents.agent_registry._agents', {}) as mock_module_agents:
             await ensure_agents_loaded()
-            mock_module_agents.update(_agents) # Copy the agents created by ensure_agents_loaded
+            mock_module_agents.update({k: v for k, v in _agents.items() if k in mock_module_agents}) # Only update if key exists
             with pytest.raises(ValueError, match="Agent 'non_existent_agent' not found in the registry."):
                 get_agent("non_existent_agent")
 
