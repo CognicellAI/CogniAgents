@@ -12,45 +12,13 @@ from cogni_agents.agent_registry import (
 from cogni_agents.cogni_agent import CogniAgent
 
 
-# Fixture to reset the registry state before each test
-@pytest.fixture(autouse=True)
-async def reset_agent_registry():
-    global _agents, _loaded
-    _agents = {}
-    _loaded = False
-    # Ensure the lock is released if it was acquired in a failed test
-    if _lock.locked():
-        _lock.release()
-    yield
-    _agents = {}
-    _loaded = False
-    if _lock.locked():
-        _lock.release()
-
-
-# Mock get_agent_configs from config_loader
-@pytest.fixture
-def mock_get_agent_configs():
-    with patch("cogni_agents.agent_registry.get_agent_configs") as mock_gac:
-        mock_gac.return_value = [
-            {"name": "agent1", "prompt": "Prompt 1", "llm_model": "model1"},
-            {"name": "agent2", "prompt": "Prompt 2", "llm_model": "model2"},
-        ]
-        yield mock_gac
-
-
-# Mock CogniAgent constructor
-@pytest.fixture
-def mock_cogni_agent_constructor():
-    with patch("cogni_agents.agent_registry.CogniAgent") as MockCogniAgent:
-        # Configure the mock constructor to return a mock instance
-        MockCogniAgent.return_value = MagicMock(spec=CogniAgent)
-        yield MockCogniAgent
-
+# reset_agent_registry, mock_get_agent_configs, mock_cogni_agent_constructor
+# are now provided by conftest.py
 
 @pytest.mark.asyncio
 async def test_ensure_agents_loaded_first_time(mock_get_agent_configs, mock_cogni_agent_constructor):
     """Test that agents are loaded and initialized correctly the first time."""
+    # _loaded and _agents are reset by reset_all_modules_state fixture
     assert not _loaded
     assert not _agents
 
@@ -138,6 +106,7 @@ async def test_get_agent_success(mock_get_agent_configs, mock_cogni_agent_constr
 @pytest.mark.asyncio
 async def test_get_agent_not_loaded():
     """Test get_agent raises ValueError if agents are not loaded."""
+    # _loaded is reset by reset_all_modules_state fixture
     assert not _loaded
     with pytest.raises(ValueError, match="Agents have not been loaded."):
         get_agent("agent1")
@@ -168,6 +137,7 @@ async def test_reload_agents(mock_get_agent_configs, mock_cogni_agent_constructo
 
     await ensure_agents_loaded()
     mock_get_agent_configs.assert_called_once()
-    mock_cogni_agent_constructor.assert_called_once() # Only called for agent1 if agent2 failed init
+    # The mock_cogni_agent_constructor is called twice for agent1 and agent2
+    assert mock_cogni_agent_constructor.call_count == 2
     assert _loaded
     assert len(_agents) == 2

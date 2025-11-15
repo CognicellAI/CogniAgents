@@ -15,79 +15,13 @@ from cogni_agents.cogni_agent import CogniAgent
 from cogni_agents.schemas import SummaryOutput, SentimentOutput
 
 
-# Fixture to reset the workflow engine state before each test
-@pytest.fixture(autouse=True)
-async def reset_workflow_engine():
-    global _workflow_by_name, _workflows_loaded
-    _workflow_by_name = {}
-    _workflows_loaded = False
-    if _lock.locked():
-        _lock.release()
-    yield
-    _workflow_by_name = {}
-    _workflows_loaded = False
-    if _lock.locked():
-        _lock.release()
-
-
-# Mock get_workflow_configs from config_loader
-@pytest.fixture
-def mock_get_workflow_configs():
-    with patch("cogni_agents.workflow_engine.get_workflow_configs") as mock_gwc:
-        mock_gwc.return_value = [
-            {
-                "name": "test_workflow_1",
-                "description": "Workflow 1",
-                "steps": [
-                    {"agent": "agent1", "input_from": "payload.text", "save_as": "step1_result"}
-                ]
-            },
-            {
-                "name": "test_workflow_2",
-                "description": "Workflow 2",
-                "steps": [
-                    {"agent": "agent2", "input_from": "results.step1_result", "save_as": "step2_result"}
-                ]
-            }
-        ]
-        yield mock_gwc
-
-
-# Mock get_template from config_loader
-@pytest.fixture
-def mock_get_template():
-    with patch("cogni_agents.workflow_engine.get_template") as mock_gt:
-        mock_gt.side_effect = {
-            "test_workflow_1": "Summary: {{ results.step1_result.summary }}",
-            "test_workflow_with_payload": "Payload content: {{ payload.content }}",
-            "test_workflow_2": None # No template for this one
-        }.get
-        yield mock_gt
-
-
-# Mock ensure_agents_loaded and get_agent from agent_registry
-@pytest.fixture
-def mock_agent_registry():
-    with patch("cogni_agents.workflow_engine.ensure_agents_loaded", new_callable=AsyncMock) as mock_eal, \
-         patch("cogni_agents.workflow_engine.get_agent") as mock_ga:
-
-        # Mock CogniAgent instances
-        mock_agent1 = MagicMock(spec=CogniAgent)
-        mock_agent1.invoke = AsyncMock(return_value=SummaryOutput(summary="mocked summary 1"))
-
-        mock_agent2 = MagicMock(spec=CogniAgent)
-        mock_agent2.invoke = AsyncMock(return_value=SentimentOutput(sentiment="positive", rationale="good"))
-
-        mock_ga.side_effect = lambda name: {
-            "agent1": mock_agent1,
-            "agent2": mock_agent2,
-        }.get(name)
-        yield mock_eal, mock_ga
-
+# reset_workflow_engine, mock_get_workflow_configs, mock_get_template,
+# mock_agent_registry_for_workflow_engine are now provided by conftest.py
 
 @pytest.mark.asyncio
 async def test_load_workflows_first_time(mock_get_workflow_configs):
     """Test that workflows are loaded and indexed correctly the first time."""
+    # _workflows_loaded and _workflow_by_name are reset by reset_all_modules_state fixture
     assert not _workflows_loaded
     assert not _workflow_by_name
 
@@ -141,9 +75,9 @@ async def test_load_workflows_config_missing_name(mock_get_workflow_configs, cap
 
 
 @pytest.mark.asyncio
-async def test_run_workflow_success(mock_get_workflow_configs, mock_agent_registry):
+async def test_run_workflow_success(mock_get_workflow_configs, mock_agent_registry_for_workflow_engine):
     """Test successful execution of a single-step workflow."""
-    mock_eal, mock_ga = mock_agent_registry
+    mock_eal, mock_ga = mock_agent_registry_for_workflow_engine
     payload = {"text": "document content"}
     context = await run_workflow("test_workflow_1", payload)
 
@@ -159,7 +93,7 @@ async def test_run_workflow_success(mock_get_workflow_configs, mock_agent_regist
 
 
 @pytest.mark.asyncio
-async def test_run_workflow_multi_step_success(mock_get_workflow_configs, mock_agent_registry):
+async def test_run_workflow_multi_step_success(mock_get_workflow_configs, mock_agent_registry_for_workflow_engine):
     """Test successful execution of a multi-step workflow."""
     mock_get_workflow_configs.return_value = [
         {
@@ -170,7 +104,7 @@ async def test_run_workflow_multi_step_success(mock_get_workflow_configs, mock_a
             ]
         }
     ]
-    mock_eal, mock_ga = mock_agent_registry
+    mock_eal, mock_ga = mock_agent_registry_for_workflow_engine
     payload = {"content": "This is a great document."}
     context = await run_workflow("multi_step_workflow", payload)
 
@@ -188,16 +122,16 @@ async def test_run_workflow_multi_step_success(mock_get_workflow_configs, mock_a
 
 
 @pytest.mark.asyncio
-async def test_run_workflow_not_found(mock_get_workflow_configs, mock_agent_registry):
+async def test_run_workflow_not_found(mock_get_workflow_configs, mock_agent_registry_for_workflow_engine):
     """Test run_workflow raises ValueError if workflow is not found."""
     with pytest.raises(ValueError, match="Workflow 'non_existent_workflow' not found."):
         await run_workflow("non_existent_workflow", {"text": "input"})
 
 
 @pytest.mark.asyncio
-async def test_run_workflow_agent_invocation_error(mock_get_workflow_configs, mock_agent_registry):
+async def test_run_workflow_agent_invocation_error(mock_get_workflow_configs, mock_agent_registry_for_workflow_engine):
     """Test run_workflow handles errors during agent invocation."""
-    mock_eal, mock_ga = mock_agent_registry
+    mock_eal, mock_ga = mock_agent_registry_for_workflow_engine
     mock_ga.return_value.invoke.side_effect = Exception("Agent failed")
 
     with pytest.raises(Exception, match="Agent failed"):
@@ -219,7 +153,7 @@ def test_resolve_path_key_error():
 
 
 def test_resolve_path_type_error():
-    """Test _resolve_path raises TypeError if intermediate path is not a dict."""
+    """Test _resolve_path raises TypeError if intermediate part of the path is not a dict."""
     ctx = {"payload": "not_a_dict"}
     with pytest.raises(TypeError, match="'payload' is not a dictionary."):
         _resolve_path(ctx, "payload.content")
@@ -239,12 +173,12 @@ def test_render_workflow_output_with_template(mock_get_template):
 def test_render_workflow_output_with_payload_in_template(mock_get_template):
     """Test rendering output when a template uses payload data."""
     context = {
-        "payload": {"content": "original text"},
-        "results": {"step1_result": SummaryOutput(summary="short summary")}
+        "payload": {"original_text": "original text content"},
+        "results": {"generic_output": "some generic output"}
     }
-    output = render_workflow_output("test_workflow_with_payload", context)
-    assert output == "Payload content: original text"
-    mock_get_template.assert_called_once_with("test_workflow_with_payload")
+    output = render_workflow_output("test_workflow_with_payload_template", context)
+    assert output == "Original: original text content. Output: some generic output"
+    mock_get_template.assert_called_once_with("test_workflow_with_payload_template")
 
 
 def test_render_workflow_output_no_template(mock_get_template):
@@ -253,10 +187,10 @@ def test_render_workflow_output_no_template(mock_get_template):
         "payload": {"content": "original text"},
         "results": {"step2_result": SentimentOutput(sentiment="positive", rationale="good")}
     }
-    output = render_workflow_output("test_workflow_2", context)
+    output = render_workflow_output("test_workflow_no_template", context)
     # Default behavior is to return string representation of results
     assert "sentiment='positive' rationale='good'" in output
-    mock_get_template.assert_called_once_with("test_workflow_2")
+    mock_get_template.assert_called_once_with("test_workflow_no_template")
 
 
 def test_render_workflow_output_template_error(mock_get_template, caplog):
@@ -274,7 +208,7 @@ def test_render_workflow_output_template_error(mock_get_template, caplog):
 
 
 @pytest.mark.asyncio
-async def test_reload_workflows():
+async def test_reload_workflows(mock_get_workflow_configs):
     """Test that reload_workflows resets the state for a fresh load."""
     await load_workflows()
     assert _workflows_loaded
@@ -285,9 +219,9 @@ async def test_reload_workflows():
     assert not _workflows_loaded
     assert not _workflow_by_name
     # Calling load_workflows again should trigger a full reload
-    with patch("cogni_agents.workflow_engine.get_workflow_configs") as mock_gwc_reload:
-        mock_gwc_reload.return_value = [{"name": "reloaded_wf", "steps": []}]
-        await load_workflows()
-        mock_gwc_reload.assert_called_once()
-        assert _workflows_loaded
-        assert "reloaded_wf" in _workflow_by_name
+    mock_get_workflow_configs.reset_mock() # Reset mock to count calls for reload
+    mock_get_workflow_configs.return_value = [{"name": "reloaded_wf", "steps": []}]
+    await load_workflows()
+    mock_get_workflow_configs.assert_called_once()
+    assert _workflows_loaded
+    assert "reloaded_wf" in _workflow_by_name

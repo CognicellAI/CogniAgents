@@ -9,35 +9,10 @@ from cogni_agents.cogni_agent import CogniAgent
 from cogni_agents.schemas import SummaryOutput, SentimentOutput, OUTPUT_SCHEMAS
 
 
-# Mock the global LLM settings for consistent testing
-@pytest.fixture(autouse=True)
-def mock_global_llm_settings():
-    with patch("cogni_agents.cogni_agent.get_global_llm_settings") as mock_get_global_llm_settings:
-        mock_get_global_llm_settings.return_value = {
-            "model": "global-default-model",
-            "temperature": 0.1
-        }
-        yield mock_get_global_llm_settings
+# mock_global_llm_settings, mock_pydantic_ai_agent, mock_openai_chat_model
+# are now provided by conftest.py
 
-
-# Mock PydanticAIAgent and OpenAIChatModel
-@pytest.fixture
-def mock_pydantic_ai_agent():
-    with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockAgent:
-        mock_instance = MockAgent.return_value
-        mock_instance.run = AsyncMock()
-        # Mock the result structure PydanticAIAgent.run returns
-        mock_instance.run.return_value = MagicMock(output="mocked agent output")
-        yield MockAgent
-
-
-@pytest.fixture
-def mock_openai_chat_model():
-    with patch("cogni_agents.cogni_agent.OpenAIChatModel") as MockChatModel:
-        yield MockChatModel
-
-
-def test_cogni_agent_initialization_str_output(mock_pydantic_ai_agent, mock_openai_chat_model):
+def test_cogni_agent_initialization_str_output(mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
     """Test CogniAgent initialization with default string output."""
     agent_config = {
         "name": "test_agent",
@@ -56,15 +31,20 @@ def test_cogni_agent_initialization_str_output(mock_pydantic_ai_agent, mock_open
     assert agent.output_schema_name is None
     assert agent.output_type == str
 
-    mock_openai_chat_model.assert_called_once_with(model="agent-specific-model")
-    mock_pydantic_ai_agent.assert_called_once()
-    args, kwargs = mock_pydantic_ai_agent.call_args
-    assert kwargs["instructions"] == "Test prompt"
-    assert kwargs["output_type"] == str
-    assert kwargs["model_settings"]["temperature"] == 0.5
+    mock_openai_chat_model_init.assert_called_once_with(model="agent-specific-model")
+    # PydanticAIAgent is mocked inside mock_pydantic_ai_agent_run, so we need to access it differently
+    # The patch target for PydanticAIAgent is in cogni_agents.cogni_agent
+    with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockAgent:
+        # Re-initialize agent to capture PydanticAIAgent call
+        CogniAgent(agent_config)
+        MockAgent.assert_called_once()
+        args, kwargs = MockAgent.call_args
+        assert kwargs["instructions"] == "Test prompt"
+        assert kwargs["output_type"] == str
+        assert kwargs["model_settings"]["temperature"] == 0.5
 
 
-def test_cogni_agent_initialization_pydantic_output(mock_pydantic_ai_agent, mock_openai_chat_model):
+def test_cogni_agent_initialization_pydantic_output(mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
     """Test CogniAgent initialization with a Pydantic output schema."""
     agent_config = {
         "name": "summary_agent",
@@ -80,15 +60,17 @@ def test_cogni_agent_initialization_pydantic_output(mock_pydantic_ai_agent, mock
     assert agent.name == "summary_agent"
     assert agent.output_type == SummaryOutput
 
-    mock_openai_chat_model.assert_called_once_with(model="summary-model")
-    mock_pydantic_ai_agent.assert_called_once()
-    args, kwargs = mock_pydantic_ai_agent.call_args
-    assert kwargs["instructions"] == "Summarize this."
-    assert kwargs["output_type"] == SummaryOutput
-    assert kwargs["model_settings"]["temperature"] == 0.2
+    mock_openai_chat_model_init.assert_called_once_with(model="summary-model")
+    with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockAgent:
+        CogniAgent(agent_config)
+        MockAgent.assert_called_once()
+        args, kwargs = MockAgent.call_args
+        assert kwargs["instructions"] == "Summarize this."
+        assert kwargs["output_type"] == SummaryOutput
+        assert kwargs["model_settings"]["temperature"] == 0.2
 
 
-def test_cogni_agent_initialization_global_llm_settings(mock_pydantic_ai_agent, mock_openai_chat_model, mock_global_llm_settings):
+def test_cogni_agent_initialization_global_llm_settings(mock_pydantic_ai_agent_run, mock_openai_chat_model_init, mock_global_llm_settings):
     """Test CogniAgent uses global LLM settings if not specified in config."""
     agent_config = {
         "name": "global_agent",
@@ -101,13 +83,15 @@ def test_cogni_agent_initialization_global_llm_settings(mock_pydantic_ai_agent, 
     assert agent.llm_model is None
     assert agent.temperature is None
 
-    mock_openai_chat_model.assert_called_once_with(model="global-default-model")
-    mock_pydantic_ai_agent.assert_called_once()
-    args, kwargs = mock_pydantic_ai_agent.call_args
-    assert kwargs["model_settings"]["temperature"] == 0.1 # From global settings
+    mock_openai_chat_model_init.assert_called_once_with(model="global-default-model")
+    with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockAgent:
+        CogniAgent(agent_config)
+        MockAgent.assert_called_once()
+        args, kwargs = MockAgent.call_args
+        assert kwargs["model_settings"]["temperature"] == 0.1 # From global settings
 
 
-def test_cogni_agent_initialization_missing_model_name(mock_pydantic_ai_agent, mock_openai_chat_model, mock_global_llm_settings):
+def test_cogni_agent_initialization_missing_model_name(mock_pydantic_ai_agent_run, mock_openai_chat_model_init, mock_global_llm_settings):
     """Test initialization raises ValueError if no model name is found."""
     mock_global_llm_settings.return_value = {} # No global default
     agent_config = {
@@ -120,7 +104,7 @@ def test_cogni_agent_initialization_missing_model_name(mock_pydantic_ai_agent, m
 
 
 @pytest.mark.asyncio
-async def test_cogni_agent_invoke(mock_pydantic_ai_agent):
+async def test_cogni_agent_invoke(mock_pydantic_ai_agent_run):
     """Test the invoke method calls the underlying PydanticAIAgent.run."""
     agent_config = {
         "name": "invoke_agent",
@@ -133,12 +117,12 @@ async def test_cogni_agent_invoke(mock_pydantic_ai_agent):
     context = {"key": "value"}
     result = await agent.invoke(input_text, context)
 
-    mock_pydantic_ai_agent.return_value.run.assert_called_once_with(input_text)
-    assert result == "mocked agent output"
+    mock_pydantic_ai_agent_run.assert_called_once_with(input_text)
+    assert result == "Mocked summary of: This is some input t..." # Updated based on conftest.py mock
 
 
 @pytest.mark.asyncio
-async def test_cogni_agent_invoke_error_handling(mock_pydantic_ai_agent):
+async def test_cogni_agent_invoke_error_handling(mock_pydantic_ai_agent_run):
     """Test invoke method handles exceptions from PydanticAIAgent.run."""
     agent_config = {
         "name": "error_agent",
@@ -147,7 +131,7 @@ async def test_cogni_agent_invoke_error_handling(mock_pydantic_ai_agent):
     }
     agent = CogniAgent(agent_config)
 
-    mock_pydantic_ai_agent.return_value.run.side_effect = Exception("LLM call failed")
+    mock_pydantic_ai_agent_run.side_effect = Exception("LLM call failed")
 
     with pytest.raises(Exception, match="LLM call failed"):
         await agent.invoke("input")
