@@ -1,6 +1,6 @@
 import pytest
 import os
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock, mock_open
 from cogni_agents.workflow_engine import run_workflow, render_workflow_output
 from cogni_agents.config_loader import reload_config
 from cogni_agents.agent_registry import reload_agents
