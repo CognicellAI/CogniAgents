@@ -120,8 +120,11 @@ async def test_cogni_agent_invoke(mock_pydantic_ai_agent_run, mock_openai_chat_m
     context = {"key": "value"}
     result = await agent.invoke(input_text, context)
 
-    mock_pydantic_ai_agent_run.assert_called_once_with(input_text)
-    assert result == "Mocked summary of: This is some input t..." # Updated based on conftest.py mock
+    mock_pydantic_ai_agent_run.assert_called_once()
+    args, kwargs = mock_pydantic_ai_agent_run.call_args
+    assert args[1] == input_text
+    # The return value is now based on the output_type, which is `str` for this agent.
+    assert result == "Mocked generic output for: This is some input t..."
 
 
 @pytest.mark.asyncio

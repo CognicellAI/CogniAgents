@@ -99,37 +99,30 @@ def mock_openai_chat_model_init():
 
 
 @pytest.fixture
-def mock_pydantic_ai_agent_constructor():
+def mock_pydantic_ai_agent_run():
     """
-    Mocks the `PydanticAIAgent` constructor and its `run` method to control LLM responses
-    based on the `output_type` the agent was initialized with.
+    Mocks the `run` method of PydanticAIAgent to control LLM responses
+    based on the `output_type` of the agent instance.
     """
-    with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockPydanticAIAgent:
-        def mock_pydantic_ai_agent_side_effect(chat_model, instructions, output_type, model_settings):
-            mock_instance = MagicMock(spec=PydanticAIAgent)
-            mock_instance.instructions = instructions
-            mock_instance.output_type = output_type
-            mock_instance.model_settings = model_settings
+    # This is the mock we will assert against.
+    mock_run = AsyncMock()
 
-            async def mock_run_method(input_text: str):
-                mock_result = MagicMock()
-                if output_type == SummaryOutput:
-                    mock_result.output = SummaryOutput(summary=f"Mocked summary of: {input_text[:20]}...")
-                elif output_type == SentimentOutput:
-                    mock_result.output = SentimentOutput(sentiment="positive", rationale="Mocked rationale")
-                elif output_type == str:
-                    mock_result.output = f"Mocked generic output for: {input_text[:20]}..."
-                else:
-                    # Fallback for other Pydantic models if needed
-                    # This might need adjustment if other Pydantic models are introduced
-                    mock_result.output = output_type.parse_obj({"value": f"Mocked {output_type.__name__} for: {input_text[:20]}..."})
-                return mock_result
+    async def side_effect(self, input_text: str): # `self` here is the PydanticAIAgent instance
+        mock_result = MagicMock()
+        # We can access the output_type from the instance
+        if self.output_type == SummaryOutput:
+            mock_result.output = SummaryOutput(summary=f"Mocked summary of: {input_text[:20]}...")
+        elif self.output_type == SentimentOutput:
+            mock_result.output = SentimentOutput(sentiment="positive", rationale="Mocked rationale")
+        else: # str
+            mock_result.output = f"Mocked generic output for: {input_text[:20]}..."
+        return mock_result
 
-            mock_instance.run = AsyncMock(side_effect=mock_run_method)
-            return mock_instance
+    mock_run.side_effect = side_effect
 
-        MockPydanticAIAgent.side_effect = mock_pydantic_ai_agent_side_effect
-        yield MockPydanticAIAgent
+    # Patch the `run` method on the class prototype
+    with patch("pydantic_ai.Agent.run", new=mock_run):
+        yield mock_run
 
 
 @pytest.fixture
