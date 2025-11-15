@@ -33,6 +33,10 @@ include = ["cogni_agents*"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto" # Required for pytest-asyncio
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)d: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 [tool.ruff]
 line-length = 100
