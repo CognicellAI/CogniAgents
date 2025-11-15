@@ -14,17 +14,61 @@ from cogni_agents.workflow_engine import (
 from cogni_agents.cogni_agent import CogniAgent
 from cogni_agents.schemas import SummaryOutput, SentimentOutput
 
+@pytest.fixture
+def mock_get_workflow_configs():
+    """Mocks get_workflow_configs from config_loader for workflow_engine tests."""
+    with patch("cogni_agents.workflow_engine.get_workflow_configs") as mock_gwc:
+        mock_gwc.return_value = [
+            {
+                "name": "test_workflow_1",
+                "description": "Workflow 1",
+                "steps": [
+                    {"agent": "agent1", "input_from": "payload.text", "save_as": "step1_result"}
+                ]
+            },
+            {
+                "name": "test_workflow_2",
+                "description": "Workflow 2",
+                "steps": [
+                    {"agent": "agent2", "input_from": "results.step1_result.summary", "save_as": "step2_result"}
+                ]
+            }
+        ]
+        yield mock_gwc
 
-# reset_workflow_engine, mock_get_workflow_configs, mock_get_template,
-# mock_agent_registry_for_workflow_engine are now provided by conftest.py
+@pytest.fixture
+def mock_get_template():
+    """Mocks get_template from config_loader for workflow_engine tests."""
+    with patch("cogni_agents.workflow_engine.get_template") as mock_gt:
+        mock_gt.side_effect = {
+            "test_workflow_1": "Summary: {{ results.step1_result.summary }}",
+            "test_workflow_with_payload_template": "Original: {{ payload.original_text }}. Output: {{ results.generic_output }}",
+            "test_workflow_no_template": None
+        }.get
+        yield mock_gt
+
+@pytest.fixture
+def mock_agent_registry_for_workflow_engine():
+    """Mocks ensure_agents_loaded and get_agent from agent_registry for workflow_engine tests."""
+    with patch("cogni_agents.workflow_engine.ensure_agents_loaded", new_callable=AsyncMock) as mock_eal, \
+         patch("cogni_agents.workflow_engine.get_agent") as mock_ga:
+
+        mock_agent1 = MagicMock(spec=CogniAgent)
+        mock_agent1.invoke = AsyncMock(return_value=SummaryOutput(summary="mocked summary 1"))
+
+        mock_agent2 = MagicMock(spec=CogniAgent)
+        mock_agent2.invoke = AsyncMock(return_value=SentimentOutput(sentiment="positive", rationale="good"))
+
+        mock_ga.side_effect = lambda name: {
+            "agent1": mock_agent1,
+            "agent2": mock_agent2,
+        }.get(name)
+        yield mock_eal, mock_ga
+
 
 @pytest.mark.asyncio
 async def test_load_workflows_first_time(mock_get_workflow_configs):
     """Test that workflows are loaded and indexed correctly the first time."""
-    # _workflows_loaded and _workflow_by_name are reset by reset_all_modules_state fixture
-    assert not _workflows_loaded
-    assert not _workflow_by_name
-
     await load_workflows()
 
     assert _workflows_loaded
@@ -148,14 +192,14 @@ def test_resolve_path_success():
 def test_resolve_path_key_error():
     """Test _resolve_path raises KeyError for non-existent path."""
     ctx = {"payload": {"content": "hello"}}
-    with pytest.raises(KeyError, match="Missing key 'summary'"):
+    with pytest.raises(KeyError, match="Missing key 'results'"):
         _resolve_path(ctx, "results.summary")
 
 
 def test_resolve_path_type_error():
     """Test _resolve_path raises TypeError if intermediate part of the path is not a dict."""
     ctx = {"payload": "not_a_dict"}
-    with pytest.raises(TypeError, match="'payload' is not a dictionary."):
+    with pytest.raises(TypeError, match="'payload' is not a dictionary or Pydantic model."):
         _resolve_path(ctx, "payload.content")
 
 

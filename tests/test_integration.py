@@ -9,15 +9,15 @@ from pydantic_ai import Agent as PydanticAIAgent
 from pydantic_ai.models.openai import OpenAIChatModel
 
 
-# mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init
+# mock_test_config, mock_pydantic_ai_agent_run, mock_openai_chat_model_init
 # are now provided by conftest.py
 
 @pytest.mark.asyncio
-async def test_integration_simple_summary_workflow(mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
+async def test_integration_simple_summary_workflow(mock_test_config, mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
     """
     End-to-end test for a simple summary workflow.
     """
-    workflow_name = "test_workflow_1" # Using workflow from conftest.py sample
+    workflow_name = "test_workflow_1" # Using workflow from test_config.yaml
     payload = {"text": "This is a long document that needs to be summarized for testing purposes."}
 
     # Run the workflow
@@ -43,11 +43,11 @@ async def test_integration_simple_summary_workflow(mock_config_content, mock_pyd
 
 
 @pytest.mark.asyncio
-async def test_integration_multi_step_workflow(mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
+async def test_integration_multi_step_workflow(mock_test_config, mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
     """
     End-to-end test for a multi-step workflow involving summarization and sentiment analysis.
     """
-    workflow_name = "multi_step_workflow" # Using workflow from conftest.py sample
+    workflow_name = "multi_step_workflow" # Using workflow from test_config.yaml
     payload = {"content": "The product launch was a huge success! Everyone loved it."}
 
     # Run the workflow
@@ -57,11 +57,11 @@ async def test_integration_multi_step_workflow(mock_config_content, mock_pydanti
     assert "payload" in context
     assert "results" in context
     assert context["payload"] == payload
-    assert "summary" in context["results"] # Changed from summary_result
-    assert "sentiment" in context["results"] # Changed from sentiment_result
+    assert "summary" in context["results"]
+    assert "sentiment" in context["results"]
 
-    summary_output = context["results"]["summary"] # Changed from summary_result
-    sentiment_output = context["results"]["sentiment"] # Changed from sentiment_result
+    summary_output = context["results"]["summary"]
+    sentiment_output = context["results"]["sentiment"]
 
     assert isinstance(summary_output, SummaryOutput)
     assert "Mocked summary" in summary_output.summary
