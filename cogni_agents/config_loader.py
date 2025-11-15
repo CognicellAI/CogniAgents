@@ -1,5 +1,11 @@
 import yaml
 from typing import Any, Dict, List, Optional
+from dotenv import load_dotenv # Import load_dotenv
+
+# Load environment variables from .env file at the start
+# This ensures that OPENAI_BASE_URL and OPENAI_API_KEY are available
+# for PydanticAI's OpenAIChatModel.
+load_dotenv()
 
 # Path to the configuration file
 CONFIG_FILE_PATH = "config.yaml"
