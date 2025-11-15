@@ -9,6 +9,7 @@ from cogni_agents.workflow_engine import reload_workflows, _workflow_by_name, _w
 from cogni_agents.cogni_agent import CogniAgent
 from cogni_agents.schemas import SummaryOutput, SentimentOutput
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai import Agent as PydanticAIAgent # Import PydanticAIAgent
 
 
 # Path to the test configuration file
@@ -100,26 +101,34 @@ def mock_openai_chat_model_init():
 @pytest.fixture
 def mock_pydantic_ai_agent_run():
     """
-    Mocks the `run` method of PydanticAIAgent to control LLM responses.
+    Mocks the `PydanticAIAgent` constructor and its `run` method to control LLM responses
+    based on the `output_type` the agent was initialized with.
     """
-    with patch("pydantic_ai.Agent.run", new_callable=AsyncMock) as mock_run:
-        # Configure side_effect to return different outputs based on agent's purpose
-        def side_effect_func(input_text: str):
-            if "Summarize" in input_text or "summary" in input_text.lower():
+    with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockPydanticAIAgent:
+        def mock_pydantic_ai_agent_constructor(chat_model, instructions, output_type, model_settings):
+            mock_instance = MagicMock(spec=PydanticAIAgent)
+            mock_instance.instructions = instructions
+            mock_instance.output_type = output_type
+            mock_instance.model_settings = model_settings
+
+            async def mock_run_method(input_text: str):
                 mock_result = MagicMock()
-                mock_result.output = SummaryOutput(summary=f"Mocked summary of: {input_text[:20]}...")
-                return mock_result
-            elif "sentiment" in input_text.lower():
-                mock_result = MagicMock()
-                mock_result.output = SentimentOutput(sentiment="positive", rationale="Mocked rationale")
-                return mock_result
-            else:
-                mock_result = MagicMock()
-                mock_result.output = f"Mocked generic output for: {input_text[:20]}..."
+                if output_type == SummaryOutput:
+                    mock_result.output = SummaryOutput(summary=f"Mocked summary of: {input_text[:20]}...")
+                elif output_type == SentimentOutput:
+                    mock_result.output = SentimentOutput(sentiment="positive", rationale="Mocked rationale")
+                elif output_type == str:
+                    mock_result.output = f"Mocked generic output for: {input_text[:20]}..."
+                else:
+                    # Fallback for other Pydantic models if needed
+                    mock_result.output = output_type.parse_obj({"value": f"Mocked {output_type.__name__} for: {input_text[:20]}..."})
                 return mock_result
 
-        mock_run.side_effect = side_effect_func
-        yield mock_run
+            mock_instance.run = AsyncMock(side_effect=mock_run_method)
+            return mock_instance
+
+        MockPydanticAIAgent.side_effect = mock_pydantic_ai_agent_constructor
+        yield MockPydanticAIAgent
 
 
 @pytest.fixture
