@@ -1,0 +1,62 @@
+global_llm_settings:
+  model: "gemini-2.5-flash" # Replace with your desired default model
+  temperature: 0.1
+
+agents:
+  - name: "generic_summarizer"
+    title: "Generic Summarizer"
+    description: "Summarizes any text content."
+    llm_model: "gemini-2.5-flash" # Ensure this model is available in your OpenWebUI setup
+    output_schema: "summary"
+    prompt: |
+      Summarize the following content clearly and concisely.
+      Do not refer to "this text" or "the document" in your answer.
+
+  # Add other agents here as needed, e.g., sentiment_analyzer, code_reviewer
+  - name: "sentiment_analyzer"
+    title: "Sentiment Analyzer"
+    description: "Classifies sentiment of text."
+    llm_model: "sentiment-model" # Ensure this model is available in your OpenWebUI setup
+    output_schema: "sentiment"
+    prompt: |
+      Analyze the sentiment of the following content and return:
+      - overall sentiment (positive, neutral, negative)
+      - a short rationale.
+
+workflows:
+  - name: "summarize_document"
+    description: "Summarize arbitrary input text."
+    steps:
+      - agent: "generic_summarizer"
+        input_from: "payload.content"   # where to get input
+        save_as: "summary"              # key in workflow context
+
+  - name: "analyze_text_with_sentiment"
+    description: "Summarize and analyze sentiment."
+    steps:
+      - agent: "generic_summarizer"
+        input_from: "payload.content"
+        save_as: "summary"
+      - agent: "sentiment_analyzer"
+        input_from: "payload.content"
+        save_as: "sentiment"
+
+templates:
+  summarize_document: |
+    # Summary
+
+    {{ results.summary.summary }}
+
+  analyze_text_with_sentiment: |
+    # Analysis Report
+
+    ## Summary
+    {{ results.summary.summary }}
+
+    ## Sentiment Analysis
+    Overall sentiment: **{{ results.sentiment.sentiment }}**
+    Rationale: {{ results.sentiment.rationale }}
+
+defaults:
+  max_tokens: 2048
+  language: "en"
