@@ -21,30 +21,37 @@ def reset_all_modules_state():
     """
     Resets the state of config_loader, agent_registry, and workflow_engine
     before and after each test to ensure isolation.
+    This fixture also sets up core patches for config loading.
     """
-    # Before test
-    # These reloads clear the internal caches of the modules
-    reload_config()
-    reload_agents()
-    reload_workflows()
+    # Read the test config data once
+    with open(TEST_CONFIG_FILE_PATH, 'r') as f:
+        test_config_data = f.read()
 
-    # Ensure locks are released if a previous test failed to do so
-    if agents_lock.locked():
-        agents_lock.release()
-    if workflows_lock.locked():
-        workflows_lock.release()
+    # Patch builtins.open and CONFIG_FILE_PATH for all tests
+    with patch("builtins.open", mock_open(read_data=test_config_data)) as mock_file_open:
+        with patch("cogni_agents.config_loader.CONFIG_FILE_PATH", "mocked_config.yaml", create=True):
+            with patch("os.getenv", return_value="mocked_config.yaml") as mock_os_getenv:
+                # Now that patching is in place, perform reloads to clear caches
+                # and ensure they pick up the mocked config path.
+                reload_config()
+                reload_agents()
+                reload_workflows()
 
-    # Patch the module-level _loaded flags to ensure they start as False for each test
-    # This is crucial because reload_* functions only reset the flag, but the actual
-    # module-level variable might retain state across tests if not explicitly patched.
-    with patch('cogni_agents.agent_registry._loaded', False) as mock_agent_loaded_flag:
-        with patch('cogni_agents.workflow_engine._workflows_loaded', False) as mock_workflow_loaded_flag:
-            # Also patch the internal dictionaries to ensure they are empty
-            with patch('cogni_agents.agent_registry._agents', {}) as mock_agents_dict:
-                with patch('cogni_agents.workflow_engine._workflow_by_name', {}) as mock_workflows_dict:
-                    yield
+                # Ensure locks are released if a previous test failed to do so
+                if agents_lock.locked():
+                    agents_lock.release()
+                if workflows_lock.locked():
+                    workflows_lock.release()
 
-    # After test
+                # Patch the module-level _loaded flags to ensure they start as False for each test
+                with patch('cogni_agents.agent_registry._loaded', False) as mock_agent_loaded_flag:
+                    with patch('cogni_agents.workflow_engine._workflows_loaded', False) as mock_workflow_loaded_flag:
+                        # Also patch the internal dictionaries to ensure they are empty
+                        with patch('cogni_agents.agent_registry._agents', {}) as mock_agents_dict:
+                            with patch('cogni_agents.workflow_engine._workflow_by_name', {}) as mock_workflows_dict:
+                                yield
+
+    # After test: ensure everything is reset
     reload_config()
     reload_agents()
     reload_workflows()
@@ -57,20 +64,12 @@ def reset_all_modules_state():
 @pytest.fixture
 def mock_config_content():
     """
-    Mocks the config.yaml file content for tests by reading from test_config.yaml.
-    This fixture is NOT autouse, so tests must explicitly request it.
-    It also patches CONFIG_FILE_PATH in config_loader to ensure the mocked file is used.
+    This fixture is now redundant as its functionality is moved to reset_all_modules_state.
+    It's kept here as a placeholder or if specific tests need to override the default mock.
+    Tests should generally rely on reset_all_modules_state for config mocking.
     """
-    with open(TEST_CONFIG_FILE_PATH, 'r') as f:
-        test_config_data = f.read()
-
-    # Patch builtins.open to return our test config data
-    with patch("builtins.open", mock_open(read_data=test_config_data)) as mock_file_open:
-        # Patch CONFIG_FILE_PATH in config_loader to ensure it tries to open the mocked file
-        with patch("cogni_agents.config_loader.CONFIG_FILE_PATH", "mocked_config.yaml", create=True):
-            # Also patch os.getenv to return our mocked config path if COGNIA_CONFIG_PATH is requested
-            with patch("os.getenv", return_value="mocked_config.yaml") as mock_os_getenv:
-                yield mock_file_open
+    # This fixture now just yields, as the patching is handled by reset_all_modules_state
+    yield
 
 
 # --- Fixtures for Mocking External Dependencies ---
