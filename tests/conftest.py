@@ -23,6 +23,7 @@ def reset_all_modules_state():
     before and after each test to ensure isolation.
     """
     # Before test
+    # These reloads clear the internal caches of the modules
     reload_config()
     reload_agents()
     reload_workflows()
@@ -33,11 +34,15 @@ def reset_all_modules_state():
     if workflows_lock.locked():
         workflows_lock.release()
 
-    # Manually reset the _loaded flags for agent_registry and workflow_engine
-    # as they are internal to the modules and not directly exposed by reload_* functions
-    with patch('cogni_agents.agent_registry._loaded', False, create=True):
-        with patch('cogni_agents.workflow_engine._workflows_loaded', False, create=True):
-            yield
+    # Patch the module-level _loaded flags to ensure they start as False for each test
+    # This is crucial because reload_* functions only reset the flag, but the actual
+    # module-level variable might retain state across tests if not explicitly patched.
+    with patch('cogni_agents.agent_registry._loaded', False) as mock_agent_loaded_flag:
+        with patch('cogni_agents.workflow_engine._workflows_loaded', False) as mock_workflow_loaded_flag:
+            # Also patch the internal dictionaries to ensure they are empty
+            with patch('cogni_agents.agent_registry._agents', {}) as mock_agents_dict:
+                with patch('cogni_agents.workflow_engine._workflow_by_name', {}) as mock_workflows_dict:
+                    yield
 
     # After test
     reload_config()
