@@ -9,9 +9,8 @@ from pydantic_ai import Agent as PydanticAIAgent
 from pydantic_ai.models.openai import OpenAIChatModel
 
 
-# INTEGRATION_CONFIG_CONTENT is now in conftest.py
-# mock_integration_config_file is now handled by mock_config_content and reset_all_modules_state in conftest.py
-# mock_pydantic_ai_agent_run and mock_openai_chat_model_init are now provided by conftest.py
+# mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init
+# are now provided by conftest.py
 
 @pytest.mark.asyncio
 async def test_integration_simple_summary_workflow(mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
@@ -47,8 +46,8 @@ async def test_integration_multi_step_workflow(mock_config_content, mock_pydanti
     """
     End-to-end test for a multi-step workflow involving summarization and sentiment analysis.
     """
-    workflow_name = "test_workflow_2" # Using workflow from conftest.py sample
-    payload = {"text": "The product launch was a huge success! Everyone loved it."}
+    workflow_name = "multi_step_workflow" # Using workflow from conftest.py sample
+    payload = {"content": "The product launch was a huge success! Everyone loved it."}
 
     # Run the workflow
     context = await run_workflow(workflow_name, payload)
@@ -57,11 +56,11 @@ async def test_integration_multi_step_workflow(mock_config_content, mock_pydanti
     assert "payload" in context
     assert "results" in context
     assert context["payload"] == payload
-    assert "step1_result" in context["results"]
-    assert "step2_result" in context["results"]
+    assert "summary_result" in context["results"]
+    assert "sentiment_result" in context["results"]
 
-    summary_output = context["results"]["step1_result"]
-    sentiment_output = context["results"]["step2_result"]
+    summary_output = context["results"]["summary_result"]
+    sentiment_output = context["results"]["sentiment_result"]
 
     assert isinstance(summary_output, SummaryOutput)
     assert "Mocked summary" in summary_output.summary
@@ -78,10 +77,8 @@ async def test_integration_multi_step_workflow(mock_config_content, mock_pydanti
     assert "The product launch" in call1_input # Input to summarizer
     assert "Mocked summary" in call2_input # Input to sentiment analyzer (output of summarizer)
 
-    # Render the output (using a workflow that has a template for payload)
-    workflow_name_with_payload_template = "test_workflow_with_payload_template"
-    payload_for_template = {"original_text": "This is the original text."}
-    context_for_template = await run_workflow(workflow_name_with_payload_template, payload_for_template)
-    final_output = render_workflow_output(workflow_name_with_payload_template, context_for_template)
-
-    assert "Original: This is the original text.. Output: Mocked generic output" in final_output
+    # Render the output
+    final_output = render_workflow_output(workflow_name, context)
+    assert "## Multi-Step Report" in final_output
+    assert "Summary: Mocked summary" in final_output
+    assert "Sentiment: positive (Mocked rationale)" in final_output

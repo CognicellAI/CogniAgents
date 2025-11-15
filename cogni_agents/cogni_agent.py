@@ -44,18 +44,15 @@ class CogniAgent:
             else global_llm_settings.get("temperature", 0.1)
         )
 
-        # Initialize OpenAIChatModel with base URL and API key from environment
-        # PydanticAI's OpenAIChatModel automatically picks up OPENAI_BASE_URL and OPENAI_API_KEY
-        # from environment variables if not explicitly passed.
-        # We can pass them explicitly if we want more control or different sources.
-        # For now, relying on environment variables as per design.
-        chat_model = OpenAIChatModel(model=model_name)
+        # Initialize OpenAIChatModel. The model name is passed via model_settings to PydanticAIAgent.
+        # OpenAIChatModel itself does not take a 'model' argument in its constructor.
+        chat_model = OpenAIChatModel()
 
         self.agent = PydanticAIAgent(
             chat_model,
             instructions=self._build_instructions(),
             output_type=self.output_type,
-            model_settings={"temperature": temp},
+            model_settings={"temperature": temp, "model": model_name}, # Pass model name here
         )
 
         logger.info(

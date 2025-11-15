@@ -30,26 +30,31 @@ def test_load_config_success(mock_config_content):
 
 def test_load_config_file_not_found():
     """Test that _load_config raises FileNotFoundError if config file is missing."""
-    reload_config() # Ensure cache is clear
-    with patch("builtins.open", side_effect=FileNotFoundError):
+    # We need to ensure the config is not loaded from the default config.yaml
+    # and that the mock_config_content fixture doesn't interfere.
+    reload_config() # Clear any cached config
+    with patch("builtins.open", side_effect=FileNotFoundError) as mock_file_open:
         with pytest.raises(FileNotFoundError, match=f"Configuration file not found at {CONFIG_FILE_PATH}"):
             _load_config()
+        mock_file_open.assert_called_once_with(CONFIG_FILE_PATH, 'r')
 
 
 def test_load_config_yaml_error():
     """Test that _load_config raises ValueError for malformed YAML."""
-    reload_config() # Ensure cache is clear
-    with patch("builtins.open", mock_open(read_data="invalid: - yaml")):
+    reload_config() # Clear any cached config
+    with patch("builtins.open", mock_open(read_data="invalid: - yaml")) as mock_file_open:
         with pytest.raises(ValueError, match="Error parsing YAML configuration"):
             _load_config()
+        mock_file_open.assert_called_once_with(CONFIG_FILE_PATH, 'r')
 
 
 def test_load_config_not_dict_at_root():
     """Test that _load_config raises ValueError if root is not a dictionary."""
-    reload_config() # Ensure cache is clear
-    with patch("builtins.open", mock_open(read_data="- item1\n- item2")):
+    reload_config() # Clear any cached config
+    with patch("builtins.open", mock_open(read_data="- item1\n- item2")) as mock_file_open:
         with pytest.raises(ValueError, match="Config file must contain a dictionary at its root."):
             _load_config()
+        mock_file_open.assert_called_once_with(CONFIG_FILE_PATH, 'r')
 
 
 def test_get_global_llm_settings(mock_config_content):
@@ -93,7 +98,7 @@ def test_get_agent_configs_not_list():
 def test_get_workflow_configs(mock_config_content):
     """Test retrieving workflow configurations."""
     workflows = get_workflow_configs()
-    assert len(workflows) == 3 # Updated count due to conftest.py sample
+    assert len(workflows) == 4 # Updated count due to conftest.py sample
     assert workflows[0]["name"] == "test_workflow_1"
     assert workflows[1]["steps"][0]["input_from"] == "results.step1_result.summary"
 
@@ -156,14 +161,15 @@ def test_get_defaults_not_dict():
             get_defaults()
 
 
-def test_reload_config():
+def test_reload_config(mock_config_content):
     """Test that reload_config clears the cache and reloads."""
     # Load config once
     _load_config()
-    with patch("builtins.open", mock_open(read_data="global_llm_settings: {model: 'reloaded-model'}")) as mock_file:
-        reload_config()
-        # Ensure file was opened again
-        mock_file.assert_called_once_with(CONFIG_FILE_PATH, 'r')
-        # Ensure new config is loaded
-        settings = get_global_llm_settings()
-        assert settings["model"] == "reloaded-model"
+    # Now, change the mock content and reload
+    mock_config_content.side_effect = [mock_open(read_data="global_llm_settings: {model: 'reloaded-model'}").return_value]
+    reload_config()
+    # Ensure new config is loaded
+    settings = get_global_llm_settings()
+    assert settings["model"] == "reloaded-model"
+    # The mock_open should have been called twice: once by initial _load_config, once by reload_config
+    assert mock_config_content.call_count == 2

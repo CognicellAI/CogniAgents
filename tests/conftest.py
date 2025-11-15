@@ -47,11 +47,23 @@ workflows:
       - agent: "agent_no_schema"
         input_from: "payload.original_text"
         save_as: "generic_output"
+  - name: "multi_step_workflow" # Added for workflow_engine test
+    steps:
+      - agent: "test_agent_1"
+        input_from: "payload.content"
+        save_as: "summary"
+      - agent: "test_agent_2"
+        input_from: "results.summary.summary"
+        save_as: "sentiment"
 
 templates:
   test_workflow_1: "Summary: {{ results.step1_result.summary }}"
   test_workflow_with_payload_template: "Original: {{ payload.original_text }}. Output: {{ results.generic_output }}"
   test_workflow_no_template: null # Explicitly no template
+  multi_step_workflow: |
+    ## Multi-Step Report
+    Summary: {{ results.summary.summary }}
+    Sentiment: {{ results.sentiment.sentiment }} ({{ results.sentiment.rationale }})
 
 defaults:
   max_tokens: 1024
@@ -77,7 +89,11 @@ def reset_all_modules_state():
     if workflows_lock.locked():
         workflows_lock.release()
 
-    yield
+    # Manually reset the _loaded flags for agent_registry and workflow_engine
+    # as they are internal to the modules and not directly exposed by reload_* functions
+    with patch('cogni_agents.agent_registry._loaded', False, create=True):
+        with patch('cogni_agents.workflow_engine._workflows_loaded', False, create=True):
+            yield
 
     # After test
     reload_config()
@@ -93,6 +109,7 @@ def reset_all_modules_state():
 def mock_config_content():
     """
     Mocks the config.yaml file content for tests.
+    This fixture is NOT autouse, so tests must explicitly request it.
     """
     with patch("builtins.open", mock_open(read_data=SAMPLE_CONFIG_CONTENT)) as mock_file:
         yield mock_file
@@ -183,14 +200,22 @@ def mock_get_workflow_configs():
                 "name": "test_workflow_1",
                 "description": "Workflow 1",
                 "steps": [
-                    {"agent": "agent1", "input_from": "payload.text", "save_as": "step1_result"}
+                    {"agent": "test_agent_1", "input_from": "payload.text", "save_as": "step1_result"}
                 ]
             },
             {
                 "name": "test_workflow_2",
                 "description": "Workflow 2",
                 "steps": [
-                    {"agent": "agent2", "input_from": "results.step1_result", "save_as": "step2_result"}
+                    {"agent": "test_agent_2", "input_from": "results.step1_result.summary", "save_as": "step2_result"}
+                ]
+            },
+            {
+                "name": "multi_step_workflow",
+                "description": "Multi-step workflow for integration.",
+                "steps": [
+                    {"agent": "test_agent_1", "input_from": "payload.content", "save_as": "summary_result"},
+                    {"agent": "test_agent_2", "input_from": "results.summary_result.summary", "save_as": "sentiment_result"},
                 ]
             }
         ]
@@ -206,7 +231,8 @@ def mock_get_template():
         mock_gt.side_effect = {
             "test_workflow_1": "Summary: {{ results.step1_result.summary }}",
             "test_workflow_with_payload_template": "Original: {{ payload.original_text }}. Output: {{ results.generic_output }}",
-            "test_workflow_no_template": None
+            "test_workflow_no_template": None,
+            "multi_step_workflow": "Summary: {{ results.summary_result.summary }}\nSentiment: {{ results.sentiment_result.sentiment }}"
         }.get
         yield mock_gt
 
@@ -230,8 +256,10 @@ def mock_agent_registry_for_workflow_engine():
         mock_agent_no_schema.invoke = AsyncMock(return_value="mocked generic output")
 
         mock_ga.side_effect = lambda name: {
-            "agent1": mock_agent1,
-            "agent2": mock_agent2,
+            "test_agent_1": mock_agent1, # Use names from SAMPLE_CONFIG_CONTENT
+            "test_agent_2": mock_agent2, # Use names from SAMPLE_CONFIG_CONTENT
             "agent_no_schema": mock_agent_no_schema,
+            "agent1": mock_agent1, # For agent_registry tests that use agent1/agent2
+            "agent2": mock_agent2, # For agent_registry tests that use agent1/agent2
         }.get(name)
         yield mock_eal, mock_ga

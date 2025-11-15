@@ -103,18 +103,19 @@ async def run_workflow(workflow_name: str, payload: Dict[str, Any]) -> Dict[str,
 
 def _resolve_path(ctx: Dict[str, Any], path: str) -> Any:
     """
-    Resolves a value from a dictionary using a dotted path string.
+    Resolves a value from a dictionary or Pydantic model using a dotted path string.
 
     Args:
         ctx: The dictionary (context) to resolve the path from.
-        path: The dotted path string (e.g., "payload.content", "results.summary").
+        path: The dotted path string (e.g., "payload.content", "results.summary.summary").
 
     Returns:
         The value found at the specified path.
 
     Raises:
-        KeyError: If any part of the path does not exist in the context.
-        TypeError: If an intermediate part of the path is not a dictionary.
+        KeyError: If any part of the path does not exist in a dictionary.
+        AttributeError: If any part of the path does not exist as an attribute on a Pydantic model.
+        TypeError: If an intermediate part of the path is not a dictionary or Pydantic model.
     """
     parts = path.split(".")
     val: Any = ctx
@@ -124,8 +125,10 @@ def _resolve_path(ctx: Dict[str, Any], path: str) -> Any:
                 val = val[p]
             else:
                 raise KeyError(f"Path '{path}' not found. Missing key '{p}' at level {i} in context.")
+        elif hasattr(val, p): # Handle Pydantic models
+            val = getattr(val, p)
         else:
-            raise TypeError(f"Cannot resolve path '{path}'. '{'.'.join(parts[:i])}' is not a dictionary.")
+            raise TypeError(f"Cannot resolve path '{path}'. '{'.'.join(parts[:i])}' is not a dictionary or Pydantic model.")
     return val
 
 def render_workflow_output(workflow_name: str, context: Dict[str, Any]) -> str:

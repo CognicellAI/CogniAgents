@@ -9,7 +9,7 @@ from cogni_agents.cogni_agent import CogniAgent
 from cogni_agents.schemas import SummaryOutput, SentimentOutput, OUTPUT_SCHEMAS
 
 
-# mock_global_llm_settings, mock_pydantic_ai_agent, mock_openai_chat_model
+# mock_global_llm_settings, mock_pydantic_ai_agent_run, mock_openai_chat_model_init
 # are now provided by conftest.py
 
 def test_cogni_agent_initialization_str_output(mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
@@ -31,7 +31,7 @@ def test_cogni_agent_initialization_str_output(mock_pydantic_ai_agent_run, mock_
     assert agent.output_schema_name is None
     assert agent.output_type == str
 
-    mock_openai_chat_model_init.assert_called_once_with(model="agent-specific-model")
+    mock_openai_chat_model_init.assert_called_once_with() # No 'model' arg
     # PydanticAIAgent is mocked inside mock_pydantic_ai_agent_run, so we need to access it differently
     # The patch target for PydanticAIAgent is in cogni_agents.cogni_agent
     with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockAgent:
@@ -42,6 +42,7 @@ def test_cogni_agent_initialization_str_output(mock_pydantic_ai_agent_run, mock_
         assert kwargs["instructions"] == "Test prompt"
         assert kwargs["output_type"] == str
         assert kwargs["model_settings"]["temperature"] == 0.5
+        assert kwargs["model_settings"]["model"] == "agent-specific-model"
 
 
 def test_cogni_agent_initialization_pydantic_output(mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
@@ -60,7 +61,7 @@ def test_cogni_agent_initialization_pydantic_output(mock_pydantic_ai_agent_run, 
     assert agent.name == "summary_agent"
     assert agent.output_type == SummaryOutput
 
-    mock_openai_chat_model_init.assert_called_once_with(model="summary-model")
+    mock_openai_chat_model_init.assert_called_once_with() # No 'model' arg
     with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockAgent:
         CogniAgent(agent_config)
         MockAgent.assert_called_once()
@@ -68,6 +69,7 @@ def test_cogni_agent_initialization_pydantic_output(mock_pydantic_ai_agent_run, 
         assert kwargs["instructions"] == "Summarize this."
         assert kwargs["output_type"] == SummaryOutput
         assert kwargs["model_settings"]["temperature"] == 0.2
+        assert kwargs["model_settings"]["model"] == "summary-model"
 
 
 def test_cogni_agent_initialization_global_llm_settings(mock_pydantic_ai_agent_run, mock_openai_chat_model_init, mock_global_llm_settings):
@@ -83,12 +85,13 @@ def test_cogni_agent_initialization_global_llm_settings(mock_pydantic_ai_agent_r
     assert agent.llm_model is None
     assert agent.temperature is None
 
-    mock_openai_chat_model_init.assert_called_once_with(model="global-default-model")
+    mock_openai_chat_model_init.assert_called_once_with() # No 'model' arg
     with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockAgent:
         CogniAgent(agent_config)
         MockAgent.assert_called_once()
         args, kwargs = MockAgent.call_args
         assert kwargs["model_settings"]["temperature"] == 0.1 # From global settings
+        assert kwargs["model_settings"]["model"] == "global-default-model"
 
 
 def test_cogni_agent_initialization_missing_model_name(mock_pydantic_ai_agent_run, mock_openai_chat_model_init, mock_global_llm_settings):
@@ -104,7 +107,7 @@ def test_cogni_agent_initialization_missing_model_name(mock_pydantic_ai_agent_ru
 
 
 @pytest.mark.asyncio
-async def test_cogni_agent_invoke(mock_pydantic_ai_agent_run):
+async def test_cogni_agent_invoke(mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
     """Test the invoke method calls the underlying PydanticAIAgent.run."""
     agent_config = {
         "name": "invoke_agent",
@@ -122,7 +125,7 @@ async def test_cogni_agent_invoke(mock_pydantic_ai_agent_run):
 
 
 @pytest.mark.asyncio
-async def test_cogni_agent_invoke_error_handling(mock_pydantic_ai_agent_run):
+async def test_cogni_agent_invoke_error_handling(mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
     """Test invoke method handles exceptions from PydanticAIAgent.run."""
     agent_config = {
         "name": "error_agent",
