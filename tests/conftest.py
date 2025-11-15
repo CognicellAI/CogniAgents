@@ -15,7 +15,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 # Sample config content for testing various modules
 SAMPLE_CONFIG_CONTENT = """
 global_llm_settings:
-  model: "test-model"
+  model: "gemini-2.5-flash"
   temperature: 0.5
 
 agents:
