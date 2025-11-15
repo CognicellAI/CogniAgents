@@ -9,11 +9,11 @@ from pydantic_ai import Agent as PydanticAIAgent
 from pydantic_ai.models.openai import OpenAIChatModel
 
 
-# mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init
+# mock_config_content, mock_pydantic_ai_agent_constructor, mock_openai_chat_model_init
 # are now provided by conftest.py
 
 @pytest.mark.asyncio
-async def test_integration_simple_summary_workflow(mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
+async def test_integration_simple_summary_workflow(mock_config_content, mock_pydantic_ai_agent_constructor, mock_openai_chat_model_init):
     """
     End-to-end test for a simple summary workflow.
     """
@@ -32,8 +32,9 @@ async def test_integration_simple_summary_workflow(mock_config_content, mock_pyd
     assert "Mocked summary" in context["results"]["step1_result"].summary
 
     # Assertions on agent invocation
-    mock_pydantic_ai_agent_run.assert_called_once()
-    args, kwargs = mock_pydantic_ai_agent_run.call_args
+    # Check the 'run' method of the mocked PydanticAIAgent instance
+    mock_pydantic_ai_agent_constructor.return_value.run.assert_called_once()
+    args, kwargs = mock_pydantic_ai_agent_constructor.return_value.run.call_args
     assert "This is a long document" in args[0]
 
     # Render the output
@@ -42,7 +43,7 @@ async def test_integration_simple_summary_workflow(mock_config_content, mock_pyd
 
 
 @pytest.mark.asyncio
-async def test_integration_multi_step_workflow(mock_config_content, mock_pydantic_ai_agent_run, mock_openai_chat_model_init):
+async def test_integration_multi_step_workflow(mock_config_content, mock_pydantic_ai_agent_constructor, mock_openai_chat_model_init):
     """
     End-to-end test for a multi-step workflow involving summarization and sentiment analysis.
     """
@@ -56,11 +57,11 @@ async def test_integration_multi_step_workflow(mock_config_content, mock_pydanti
     assert "payload" in context
     assert "results" in context
     assert context["payload"] == payload
-    assert "summary_result" in context["results"]
-    assert "sentiment_result" in context["results"]
+    assert "summary" in context["results"] # Changed from summary_result
+    assert "sentiment" in context["results"] # Changed from sentiment_result
 
-    summary_output = context["results"]["summary_result"]
-    sentiment_output = context["results"]["sentiment_result"]
+    summary_output = context["results"]["summary"] # Changed from summary_result
+    sentiment_output = context["results"]["sentiment"] # Changed from sentiment_result
 
     assert isinstance(summary_output, SummaryOutput)
     assert "Mocked summary" in summary_output.summary
@@ -69,10 +70,11 @@ async def test_integration_multi_step_workflow(mock_config_content, mock_pydanti
     assert sentiment_output.rationale == "Mocked rationale"
 
     # Assertions on agent invocations
-    assert mock_pydantic_ai_agent_run.call_count == 2
-    # Check calls in order (or at least inputs)
-    call1_input = mock_pydantic_ai_agent_run.call_args_list[0].args[0]
-    call2_input = mock_pydantic_ai_agent_run.call_args_list[1].args[0]
+    # Check the 'run' method of the mocked PydanticAIAgent instances
+    assert mock_pydantic_ai_agent_constructor.return_value.run.call_count == 2
+    # The calls are on the same mock instance, so we check call_args_list
+    call1_input = mock_pydantic_ai_agent_constructor.return_value.run.call_args_list[0].args[0]
+    call2_input = mock_pydantic_ai_agent_constructor.return_value.run.call_args_list[1].args[0]
 
     assert "The product launch" in call1_input # Input to summarizer
     assert "Mocked summary" in call2_input # Input to sentiment analyzer (output of summarizer)

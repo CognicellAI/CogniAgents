@@ -99,13 +99,13 @@ def mock_openai_chat_model_init():
 
 
 @pytest.fixture
-def mock_pydantic_ai_agent_run():
+def mock_pydantic_ai_agent_constructor():
     """
     Mocks the `PydanticAIAgent` constructor and its `run` method to control LLM responses
     based on the `output_type` the agent was initialized with.
     """
     with patch("cogni_agents.cogni_agent.PydanticAIAgent") as MockPydanticAIAgent:
-        def mock_pydantic_ai_agent_constructor(chat_model, instructions, output_type, model_settings):
+        def mock_pydantic_ai_agent_side_effect(chat_model, instructions, output_type, model_settings):
             mock_instance = MagicMock(spec=PydanticAIAgent)
             mock_instance.instructions = instructions
             mock_instance.output_type = output_type
@@ -121,13 +121,14 @@ def mock_pydantic_ai_agent_run():
                     mock_result.output = f"Mocked generic output for: {input_text[:20]}..."
                 else:
                     # Fallback for other Pydantic models if needed
+                    # This might need adjustment if other Pydantic models are introduced
                     mock_result.output = output_type.parse_obj({"value": f"Mocked {output_type.__name__} for: {input_text[:20]}..."})
                 return mock_result
 
             mock_instance.run = AsyncMock(side_effect=mock_run_method)
             return mock_instance
 
-        MockPydanticAIAgent.side_effect = mock_pydantic_ai_agent_constructor
+        MockPydanticAIAgent.side_effect = mock_pydantic_ai_agent_side_effect
         yield MockPydanticAIAgent
 
 
@@ -196,8 +197,8 @@ def mock_get_workflow_configs():
                 "name": "multi_step_workflow",
                 "description": "Multi-step workflow for integration.",
                 "steps": [
-                    {"agent": "test_agent_1", "input_from": "payload.content", "save_as": "summary_result"},
-                    {"agent": "test_agent_2", "input_from": "results.summary_result.summary", "save_as": "sentiment_result"},
+                    {"agent": "test_agent_1", "input_from": "payload.content", "save_as": "summary"}, # Changed save_as
+                    {"agent": "test_agent_2", "input_from": "results.summary.summary", "save_as": "sentiment"}, # Changed save_as
                 ]
             }
         ]
@@ -214,7 +215,7 @@ def mock_get_template():
             "test_workflow_1": "Summary: {{ results.step1_result.summary }}",
             "test_workflow_with_payload_template": "Original: {{ payload.original_text }}. Output: {{ results.generic_output }}",
             "test_workflow_no_template": None,
-            "multi_step_workflow": "Summary: {{ results.summary.summary }}\nSentiment: {{ results.sentiment.sentiment }}"
+            "multi_step_workflow": "## Multi-Step Report\nSummary: {{ results.summary.summary }}\nSentiment: {{ results.sentiment.sentiment }}"
         }.get
         yield mock_gt
 
