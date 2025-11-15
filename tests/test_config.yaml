@@ -1,15 +1,15 @@
 global_llm_settings:
-  model: "test-model"
+  model: "gemini-2.5-flash"
   temperature: 0.5
 
 agents:
   - name: "test_agent_1"
     prompt: "Test prompt 1"
-    llm_model: "model-1"
+    #llm_model: "model-1"
     output_schema: "summary"
   - name: "test_agent_2"
     prompt: "Test prompt 2"
-    llm_model: "model-2"
+    #llm_model: "model-2"
     output_schema: "sentiment"
   - name: "agent_no_schema"
     prompt: "No schema"
