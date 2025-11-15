@@ -1,6 +1,7 @@
 import yaml
+import os
 from typing import Any, Dict, List, Optional
-from dotenv import load_dotenv # Import load_dotenv
+from dotenv import load_dotenv
 
 # Load environment variables from .env file at the start
 # This ensures that OPENAI_BASE_URL and OPENAI_API_KEY are available
@@ -8,13 +9,14 @@ from dotenv import load_dotenv # Import load_dotenv
 load_dotenv()
 
 # Path to the configuration file
-CONFIG_FILE_PATH = "config.yaml"
+# Can be overridden by the COGNIA_CONFIG_PATH environment variable
+CONFIG_FILE_PATH = os.getenv("COGNIA_CONFIG_PATH", "config.yaml")
 
 _config: Optional[Dict[str, Any]] = None
 
 def _load_config() -> Dict[str, Any]:
     """
-    Loads the configuration from the YAML file.
+    Loads the configuration from the YAML file specified by CONFIG_FILE_PATH.
     Caches the loaded configuration for subsequent calls.
     """
     global _config
@@ -84,4 +86,8 @@ def reload_config():
     """
     global _config
     _config = None
+    # The CONFIG_FILE_PATH might have changed via environment variable,
+    # so re-evaluate it before loading.
+    global CONFIG_FILE_PATH
+    CONFIG_FILE_PATH = os.getenv("COGNIA_CONFIG_PATH", "config.yaml")
     _load_config() # Load it immediately to catch errors early
