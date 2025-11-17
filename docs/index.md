@@ -15,4 +15,29 @@ It is designed to be:
 
 Clone the repository and install the framework in editable mode. This also installs the development dependencies needed for documentation.
 
-OK
+```bash
+git clone https://github.com/your-username/CogniAgents.git
+cd CogniAgents
+pip install -e ".[dev]"
+```
+
+### 2. Configure Environment
+
+Create a `.env` file in the project root to store your LLM API credentials.
+
+```
+OPENAI_BASE_URL="http://your-llm-endpoint:port/v1"
+OPENAI_API_KEY="your-api-key"
+```
+
+### 3. Run an Example
+
+Use the CLI to run the customer support router example.
+
+```bash
+cogni-agents route_customer_query \
+  --config-path examples/customer_support_router/config.yaml \
+  --payload '{"customer_query": "My internet is down!"}'
+```
+
+Ready to dive deeper? Check out the **[Core Concepts](core_concepts.md)**.
