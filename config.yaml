@@ -3,34 +3,112 @@ global_llm_settings:
   temperature: 0.1 # Default temperature for LLM calls
 
 agents:
-  - name: "generic_summarizer"
-    title: "Generic Summarizer"
-    description: "Summarizes any text content into a single concise paragraph."
-    llm_model: "gemini-2.5-flash" # Ensure this model is available in your OpenWebUI setup
-    output_schema: "str" # Changed to str for a simple summary string
+  - name: support_router
+    description: "Routes customer queries to the appropriate department."
     prompt: |
-      Summarize the following content clearly and concisely in a single paragraph.
-      Do not refer to "this text" or "the document" in your answer.
+      You are an AI assistant whose sole purpose is to route customer support queries to the correct department.
+      Analyze the following customer query and determine which department should handle it.
+      Choose one of the following departments: "Technical Support", "Billing", "Sales", "General Inquiry".
+      Provide a brief reason for your routing decision.
 
-      Content to summarize:
-      {text_to_summarize}
+      Customer Query:
+      {customer_query}
+    llm_model: "gemini-2.5-flash"
+    output_schema: "support_route" # Uses the new SupportRouteOutput schema
+
+  - name: technical_support_agent
+    description: "Handles technical support queries."
+    prompt: |
+      You are a Technical Support Agent. A customer query has been routed to you.
+      Acknowledge the query and state that you are ready to assist with technical issues.
+      Summarize the technical problem identified.
+
+      Customer Query:
+      {customer_query}
+    llm_model: "gemini-2.5-flash"
+    output_schema: "str" # Simple string response
+
+  - name: billing_agent
+    description: "Handles billing-related queries."
+    prompt: |
+      You are a Billing Agent. A customer query has been routed to you.
+      Acknowledge the query and state that you are ready to assist with billing inquiries.
+      Summarize the billing issue identified.
+
+      Customer Query:
+      {customer_query}
+    llm_model: "gemini-2.5-flash"
+    output_schema: "str"
+
+  - name: sales_agent
+    description: "Handles sales and upgrade inquiries."
+    prompt: |
+      You are a Sales Agent. A customer query has been routed to you.
+      Acknowledge the query and state that you are ready to assist with sales or upgrade requests.
+      Summarize the sales/upgrade interest identified.
+
+      Customer Query:
+      {customer_query}
+    llm_model: "gemini-2.5-flash"
+    output_schema: "str"
+
+  - name: general_inquiry_agent
+    description: "Handles general customer inquiries."
+    prompt: |
+      You are a General Inquiry Agent. A customer query has been routed to you.
+      Acknowledge the query and state that you are ready to assist with general questions.
+      Summarize the general inquiry identified.
+
+      Customer Query:
+      {customer_query}
+    llm_model: "gemini-2.5-flash"
+    output_schema: "str"
 
 workflows:
-  - name: "summarize_document"
-    description: "Summarize arbitrary input text."
+  - name: route_customer_query
+    description: "Routes a customer query to the appropriate specialized agent based on its content."
     steps:
-      - name: summarize_step
-        agent: "generic_summarizer"
+      - name: initial_routing
+        agent: support_router
         input:
-          text_to_summarize: "{{ payload.content }}" # New input key
-        output_to: "summary_result" # New output key
+          customer_query: "{{ payload.customer_query }}"
+        output_to: routing_decision
+
+      - name: handle_technical_support
+        agent: technical_support_agent
+        input:
+          customer_query: "{{ payload.customer_query }}"
+        output_to: final_response
+        when: "{{ context.routing_decision.department == 'Technical Support' }}"
+
+      - name: handle_billing
+        agent: billing_agent
+        input:
+          customer_query: "{{ payload.customer_query }}"
+        output_to: final_response
+        when: "{{ context.routing_decision.department == 'Billing' }}"
+
+      - name: handle_sales
+        agent: sales_agent
+        input:
+          customer_query: "{{ payload.customer_query }}"
+        output_to: final_response
+        when: "{{ context.routing_decision.department == 'Sales' }}"
+
+      - name: handle_general_inquiry
+        agent: general_inquiry_agent
+        input:
+          customer_query: "{{ payload.customer_query }}"
+        output_to: final_response
+        when: "{{ context.routing_decision.department == 'General Inquiry' }}"
 
 templates:
-  summarize_document: |
-    # Document Summary
-
-    {{ context.summary_result }} # Access the string directly
-
-defaults:
-  max_tokens: 2048
-  language: "en"
+  route_customer_query: |
+    Customer Query: {{ payload.customer_query }}
+    ---
+    Routing Decision:
+    Department: {{ context.routing_decision.department }}
+    Reason: {{ context.routing_decision.reason }}
+    ---
+    Agent Response:
+    {{ context.final_response }}
