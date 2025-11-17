@@ -70,22 +70,30 @@ class CogniAgent:
         # Future enhancement: Add schema introspection here.
         return self.prompt
 
-    async def invoke(self, input_text: str, context: Optional[Dict[str, Any]] = None) -> Any:
+    async def invoke(self, input_data: Dict[str, Any]) -> Any:
         """
-        Invokes the underlying PydanticAI agent with the given input.
+        Invokes the underlying PydanticAI agent with the given input data.
 
         Args:
-            input_text: The primary input string for the agent.
-            context: An optional dictionary containing additional context for the agent.
-                     Currently not directly used by PydanticAIAgent.run, but can be
-                     used for future prompt enrichment or tool invocation.
+            input_data: A dictionary containing the input for the agent.
+                        The keys in this dictionary should correspond to placeholders
+                        in the agent's prompt.
 
         Returns:
             The structured output from the agent, or a string if no schema is defined.
         """
-        logger.debug(f"Invoking agent '{self.name}' with input: {input_text[:100]}...")
+        # The PydanticAIAgent.run method expects a single string input.
+        # We need to format the prompt using the input_data.
+        # Assuming the prompt uses f-string like placeholders, e.g., "Review: {review_text}"
         try:
-            result = await self.agent.run(input_text)
+            formatted_prompt = self.prompt.format(**input_data)
+        except KeyError as e:
+            logger.error(f"Missing key in input_data for agent '{self.name}' prompt: {e}. Input data: {input_data}")
+            raise ValueError(f"Prompt formatting failed for agent '{self.name}'. Missing key: {e}")
+
+        logger.debug(f"Invoking agent '{self.name}' with formatted prompt: {formatted_prompt[:200]}...")
+        try:
+            result = await self.agent.run(formatted_prompt)
             logger.debug(f"Agent '{self.name}' invocation successful.")
             return result.output
         except Exception as e:

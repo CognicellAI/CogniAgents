@@ -4,9 +4,10 @@ from pydantic import BaseModel, Field
 
 class SummaryOutput(BaseModel):
     """
-    Represents a summarized text output.
+    Represents a summarized text output, specifically for customer reviews.
     """
-    summary: str = Field(description="The concise summary of the input text.")
+    positive_aspects: List[str] = Field(default_factory=list, description="List of positive points identified in the review.")
+    negative_aspects: List[str] = Field(default_factory=list, description="List of negative points identified in the review.")
 
 
 class SentimentOutput(BaseModel):

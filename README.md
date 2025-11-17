@@ -1,69 +1,61 @@
-# Example Showcase: Customer Review Analysis
+# Customer Review Analysis Example
 
-This example demonstrates how to use the CogniAgents framework to build a practical workflow that analyzes a customer review.
+This example demonstrates how to use CogniAgents to analyze customer reviews. It showcases a simple workflow that leverages two distinct AI agents: one for summarizing the review and another for determining its sentiment.
 
-## What it Does
+## Use Case
 
-The `run_customer_review_analysis.py` script executes a workflow named `analyze_customer_review` defined in `customer_review_config.yaml`. This workflow performs two tasks in parallel:
+The primary goal is to process raw customer feedback and extract actionable insights. This is a common task in product management, customer service, and marketing to quickly understand customer satisfaction and identify areas for improvement.
 
-1.  **Summarization**: An agent (`review_summarizer`) reads the customer review and extracts the key points.
-2.  **Sentiment Analysis**: Another agent (`review_sentiment_analyzer`) determines the overall sentiment of the review and provides a rationale.
+## How CogniAgents are Used
 
-Finally, the script uses a Jinja2 template to render the results into a clean, human-readable report.
+This example defines a workflow named `analyze_customer_review` which orchestrates two `CogniAgent` instances:
 
-## How to Run
+1.  **`review_summarizer`**:
+    *   **Purpose**: To condense a lengthy customer review into its core positive and negative points.
+    *   **Configuration**: Defined in `config.yaml` within this directory, with a specific prompt instructing it to extract bullet points for positive and negative aspects. It uses the `SummaryOutput` schema (defined in `cogni_agents/schemas.py`) to ensure structured output.
+    *   **Input**: The raw customer review text.
+    *   **Output**: A structured object containing lists of positive and negative aspects.
 
-### 1. Prerequisites
+2.  **`review_sentiment_analyzer`**:
+    *   **Purpose**: To classify the overall sentiment of the customer review (positive, negative, or neutral) and provide a brief explanation.
+    *   **Configuration**: Defined in `config.yaml` within this directory, with a prompt focused on sentiment classification. It uses the `SentimentOutput` schema (defined in `cogni_agents/schemas.py`) for structured output.
+    *   **Input**: The raw customer review text.
+    *   **Output**: A structured object containing the sentiment label and an explanation.
 
-- Ensure you have completed the setup instructions in the main `README.md` file, including installing dependencies (`pip install -e ".[dev]"`).
-- Make sure you have a `.env` file in the **project root directory** with your OpenWebUI credentials (`OPENAI_BASE_URL` and `OPENAI_API_KEY`).
-- Your OpenWebUI instance must be running and accessible.
+The `analyze_customer_review` workflow in `config.yaml` defines the sequence of these agents:
+*   It first runs `review_summarizer`, storing its output in the workflow context under `summary_result`.
+*   Then, it runs `review_sentiment_analyzer`, storing its output under `sentiment_result`.
 
-### 2. Run the Script
+Finally, a Jinja2 template is used to render a human-readable output that combines the results from both agents.
 
-From the **project root directory**, run the following command:
+## Running the Example
 
-```bash
-python examples/run_customer_review_analysis.py
-```
+To run this example, follow these steps:
 
-### 3. Expected Output
+1.  **Ensure dependencies are installed**:
+    If you haven't already, install the necessary Python packages. From the project root, you can typically run:
+    ```bash
+    pip install -e ".[dev]"
+    ```
+    This should install `pyyaml`, `pydantic-ai`, `openai`, `jinja2`, `python-dotenv`, and `pytest`.
 
-If successful, you will see a formatted report printed to your console, similar to this:
+2.  **Set up your LLM API Key and Base URL**:
+    Create a `.env` file in your **project root directory** (e.g., `CogniAgents/.env`) and add your LLM provider credentials. For OpenAI-compatible APIs (like OpenWebUI, LiteLLM, or OpenAI itself):
+    ```
+    OPENAI_BASE_URL="http://your-llm-endpoint:port/v1" # e.g., http://localhost:8080/v1 for OpenWebUI
+    OPENAI_API_KEY="sk-your-api-key" # This can be a dummy key for local LLMs if not required
+    ```
+    The `cogni_agents/config_loader.py` automatically loads environment variables from `.env`.
 
-```
-==================================================
-   CUSTOMER REVIEW ANALYSIS SHOWCASE
-==================================================
+3.  **Navigate to the example directory**:
+    From the project root, change into this example's directory:
+    ```bash
+    cd examples/customer_review_analysis
+    ```
 
-# Customer Review Analysis Report
----
-## Original Review:
+4.  **Run the script**:
+    ```bash
+    python run_analysis.py
+    ```
 
-I've been using the new SuperWidget 3000 for about two weeks now, and I have mixed feelings.
-On one hand, the battery life is absolutely incredible. I can go for days without needing to charge it,
-which is a huge improvement over my last device. The screen is also bright and vibrant.
-
-However, the software feels a bit sluggish. There's a noticeable delay when switching between apps,
-and it has crashed on me a couple of times. I also found the user interface to be a bit confusing
-at first, though I'm getting used to it. Overall, it's a decent product with some great hardware,
-but the software experience really needs some polish.
-
----
-## Key Points (Summary):
-- The battery life is exceptionally long.
-- The screen is bright and vibrant.
-- The software performance is sluggish with noticeable delays.
-- The software has crashed multiple times.
-- The user interface is initially confusing.
----
-## Sentiment Analysis:
-- **Sentiment:** Neutral
-- **Rationale:** The review contains a mix of strong positive feedback (battery, screen) and significant negative feedback (sluggish software, crashes), making the overall sentiment neutral or mixed.
-
-==================================================
-```
-
-*(Note: The exact summary and rationale will vary depending on the LLM you are using.)*
-
-This example showcases the core power of the framework: defining agents and chaining them in a workflow, all driven by a simple YAML configuration file, to produce a structured and well-formatted result.
+You should see log messages indicating the workflow's progress, followed by the structured analysis of the customer review printed to the console.

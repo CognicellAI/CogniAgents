@@ -10,24 +10,43 @@ load_dotenv()
 
 # Path to the configuration file
 # Can be overridden by the COGNIA_CONFIG_PATH environment variable
-CONFIG_FILE_PATH = os.getenv("COGNIA_CONFIG_PATH", "config.yaml")
-
+_config_file_path: Optional[str] = None
 _config: Optional[Dict[str, Any]] = None
+
+def set_config_path(path: str):
+    """
+    Sets the path to the configuration file. This can be used by example scripts
+    or tests to dynamically specify which config file to load.
+    """
+    global _config_file_path, _config
+    if _config_file_path != path:
+        _config_file_path = path
+        _config = None  # Invalidate cache to force reload with new path
+
+def _get_current_config_path() -> str:
+    """
+    Determines the current configuration file path, prioritizing `_config_file_path`
+    then `COGNIA_CONFIG_PATH` environment variable, then the default 'config.yaml'.
+    """
+    if _config_file_path:
+        return _config_file_path
+    return os.getenv("COGNIA_CONFIG_PATH", "config.yaml")
 
 def _load_config() -> Dict[str, Any]:
     """
-    Loads the configuration from the YAML file specified by CONFIG_FILE_PATH.
+    Loads the configuration from the YAML file.
     Caches the loaded configuration for subsequent calls.
     """
     global _config
     if _config is None:
+        current_path = _get_current_config_path()
         try:
-            with open(CONFIG_FILE_PATH, 'r') as f:
+            with open(current_path, 'r') as f:
                 _config = yaml.safe_load(f)
             if not isinstance(_config, dict):
                 raise ValueError("Config file must contain a dictionary at its root.")
         except FileNotFoundError:
-            raise FileNotFoundError(f"Configuration file not found at {CONFIG_FILE_PATH}")
+            raise FileNotFoundError(f"Configuration file not found at {current_path}")
         except yaml.YAMLError as e:
             raise ValueError(f"Error parsing YAML configuration: {e}")
     return _config
@@ -86,8 +105,4 @@ def reload_config():
     """
     global _config
     _config = None
-    # The CONFIG_FILE_PATH might have changed via environment variable,
-    # so re-evaluate it before loading.
-    global CONFIG_FILE_PATH
-    CONFIG_FILE_PATH = os.getenv("COGNIA_CONFIG_PATH", "config.yaml")
     _load_config() # Load it immediately to catch errors early

@@ -1,62 +1,69 @@
 global_llm_settings:
-  model: "gemini-2.5-flash" # Replace with your desired default model
-  temperature: 0.1
+  model: "gemini-2.5-flash" # Default LLM model for agents if not specified individually
+  temperature: 0.1 # Default temperature for LLM calls
 
 agents:
-  - name: "generic_summarizer"
-    title: "Generic Summarizer"
-    description: "Summarizes any text content."
-    llm_model: "gemini-2.5-flash" # Ensure this model is available in your OpenWebUI setup
-    output_schema: "summary"
+  - name: review_summarizer
+    description: "Summarizes customer reviews into concise points."
     prompt: |
-      Summarize the following content clearly and concisely.
-      Do not refer to "this text" or "the document" in your answer.
+      You are an expert at summarizing customer reviews.
+      Your task is to extract the key positive and negative points from the following customer review.
+      Present them as bullet points under "Positive Aspects" and "Negative Aspects".
 
-  # Add other agents here as needed, e.g., sentiment_analyzer, code_reviewer
-  - name: "sentiment_analyzer"
-    title: "Sentiment Analyzer"
-    description: "Classifies sentiment of text."
-    llm_model: "sentiment-model" # Ensure this model is available in your OpenWebUI setup
-    output_schema: "sentiment"
+      Customer Review:
+      {review_text}
+    llm_model: "gemini-2.5-flash" # Agent-specific model, overrides global_llm_settings.model
+    output_schema: "summary" # Refers to SummaryOutput in cogni_agents/schemas.py
+
+  - name: review_sentiment_analyzer
+    description: "Analyzes the overall sentiment of a customer review."
     prompt: |
-      Analyze the sentiment of the following content and return:
-      - overall sentiment (positive, neutral, negative)
-      - a short rationale.
+      You are an expert sentiment analysis AI.
+      Analyze the overall sentiment of the following customer review.
+      Classify it as 'positive', 'negative', or 'neutral'.
+      Also, provide a brief explanation for your classification.
+
+      Customer Review:
+      {review_text}
+    llm_model: "gemini-2.5-flash"
+    output_schema: "sentiment" # Refers to SentimentOutput in cogni_agents/schemas.py
 
 workflows:
-  - name: "summarize_document"
-    description: "Summarize arbitrary input text."
+  - name: analyze_customer_review
     steps:
-      - agent: "generic_summarizer"
-        input_from: "payload.content"   # where to get input
-        save_as: "summary"              # key in workflow context
+      - name: summarize_review_step
+        agent: review_summarizer
+        input:
+          review_text: "{{ payload.review_text }}"
+        output_to: summary_result
 
-  - name: "analyze_text_with_sentiment"
-    description: "Summarize and analyze sentiment."
-    steps:
-      - agent: "generic_summarizer"
-        input_from: "payload.content"
-        save_as: "summary"
-      - agent: "sentiment_analyzer"
-        input_from: "payload.content"
-        save_as: "sentiment"
+      - name: analyze_sentiment_step
+        agent: review_sentiment_analyzer
+        input:
+          review_text: "{{ payload.review_text }}"
+        output_to: sentiment_result
 
 templates:
-  summarize_document: |
-    # Summary
+  analyze_customer_review: |
+    # Customer Review Analysis Report
+    ---
+    ## Original Review:
 
-    {{ results.summary.summary }}
+    {{ payload.review_text }}
 
-  analyze_text_with_sentiment: |
-    # Analysis Report
+    ---
+    ## Key Points (Summary):
+    ### Positive Aspects:
+    {% for aspect in context.summary_result.positive_aspects %}
+    - {{ aspect }}
+    {% endfor %}
 
-    ## Summary
-    {{ results.summary.summary }}
+    ### Negative Aspects:
+    {% for aspect in context.summary_result.negative_aspects %}
+    - {{ aspect }}
+    {% endfor %}
 
-    ## Sentiment Analysis
-    Overall sentiment: **{{ results.sentiment.sentiment }}**
-    Rationale: {{ results.sentiment.rationale }}
-
-defaults:
-  max_tokens: 2048
-  language: "en"
+    ---
+    ## Sentiment Analysis:
+    - **Sentiment:** {{ context.sentiment_result.sentiment | capitalize }}
+    - **Rationale:** {{ context.sentiment_result.rationale }}
