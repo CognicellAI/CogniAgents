@@ -6,7 +6,7 @@ from pydantic_ai import Agent as PydanticAIAgent
 from pydantic_ai.models.openai import OpenAIChatModel
 
 from .config_loader import get_global_llm_settings
-from .schemas import OUTPUT_SCHEMAS
+from .schemas import get_schema
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class CogniAgent:
         self.title = agent_config.get("title", self.name)
         self.description = agent_config.get("description")
         self.prompt = agent_config["prompt"]
-        self.llm_model = agent_config["llm_model"]
+        self.llm_model = agent_config.get("llm_model")
         self.temperature = agent_config.get("temperature")
         self.output_schema_name = agent_config.get("output_schema")
 
@@ -32,10 +32,8 @@ class CogniAgent:
             raise ValueError(f"Agent '{self.name}' missing LLM model name. "
                              "Specify 'llm_model' in agent config or 'global_llm_settings.model'.")
 
-        # Resolve the output type from the OUTPUT_SCHEMAS registry
-        self.output_type: Type[Any] = OUTPUT_SCHEMAS.get(
-            self.output_schema_name, str
-        )
+        # Resolve the output type from the dynamic schema registry
+        self.output_type: Type[Any] = get_schema(self.output_schema_name)
 
         # Determine temperature, prioritizing agent-specific over global default
         temp = (
@@ -44,15 +42,14 @@ class CogniAgent:
             else global_llm_settings.get("temperature", 0.1)
         )
 
-        # Initialize OpenAIChatModel. The model name is passed via model_settings to PydanticAIAgent.
-        # OpenAIChatModel itself does not take a 'model' argument in its constructor.
+        # Initialize OpenAIChatModel.
         chat_model = OpenAIChatModel(model_name=model_name)
 
         self.agent = PydanticAIAgent(
             chat_model,
             instructions=self._build_instructions(),
             output_type=self.output_type,
-            model_settings={"temperature": temp}, # Model name is now passed directly to OpenAIChatModel
+            model_settings={"temperature": temp},
         )
 
         logger.info(
@@ -84,7 +81,6 @@ class CogniAgent:
         """
         # The PydanticAIAgent.run method expects a single string input.
         # We need to format the prompt using the input_data.
-        # Assuming the prompt uses f-string like placeholders, e.g., "Review: {review_text}"
         try:
             # Format the agent's base prompt with the provided input_data
             formatted_prompt = self.prompt.format(**input_data)

@@ -88,6 +88,14 @@ def get_template(workflow_name: str) -> Optional[str]:
         raise ValueError("Templates configuration must be a dictionary.")
     return templates.get(workflow_name)
 
+def get_custom_schema_configs() -> Dict[str, str]:
+    """
+    Retrieves the custom schema mapping from the configuration.
+    Returns a dictionary mapping a schema name to its import path.
+    """
+    config = _load_config()
+    return config.get("custom_schemas", {})
+
 def get_defaults() -> Dict[str, Any]:
     """
     Retrieves the default settings from the configuration.
@@ -101,8 +109,18 @@ def get_defaults() -> Dict[str, Any]:
 def reload_config():
     """
     Forces a reload of the configuration from the file.
-    Useful for development or when config changes externally.
+    This also triggers a reload of agents, workflows, and custom schemas.
     """
     global _config
     _config = None
     _load_config() # Load it immediately to catch errors early
+
+    # Import dynamically to avoid circular dependencies
+    from .agent_registry import reload_agents
+    from .workflow_engine import reload_workflows
+    from .schemas import reload_schemas
+
+    # Invalidate other cached modules
+    reload_schemas()
+    reload_agents()
+    reload_workflows()

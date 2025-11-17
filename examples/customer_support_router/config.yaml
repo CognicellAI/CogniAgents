@@ -1,3 +1,9 @@
+# New section to register custom schemas
+custom_schemas:
+  # 'support_route' is the name we'll use in our agent definition.
+  # The value is the full Python import path to the Pydantic model.
+  support_route: "examples.customer_support_router.custom_schemas.SupportRouteOutput"
+
 global_llm_settings:
   model: "gemini-2.5-flash" # Default LLM model for agents if not specified individually
   temperature: 0.1 # Default temperature for LLM calls
@@ -14,7 +20,7 @@ agents:
       Customer Query:
       {customer_query}
     llm_model: "gemini-2.5-flash"
-    output_schema: "support_route" # Uses the new SupportRouteOutput schema
+    output_schema: "support_route" # This now refers to our custom schema
 
   - name: technical_support_agent
     description: "Handles technical support queries."
