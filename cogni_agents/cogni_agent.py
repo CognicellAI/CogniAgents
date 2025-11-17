@@ -46,13 +46,13 @@ class CogniAgent:
 
         # Initialize OpenAIChatModel. The model name is passed via model_settings to PydanticAIAgent.
         # OpenAIChatModel itself does not take a 'model' argument in its constructor.
-        chat_model = OpenAIChatModel()
+        chat_model = OpenAIChatModel(model_name=model_name)
 
         self.agent = PydanticAIAgent(
             chat_model,
             instructions=self._build_instructions(),
             output_type=self.output_type,
-            model_settings={"temperature": temp, "model": model_name}, # Pass model name here
+            model_settings={"temperature": temp}, # Model name is now passed directly to OpenAIChatModel
         )
 
         logger.info(
