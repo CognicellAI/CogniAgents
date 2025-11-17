@@ -1,31 +1,35 @@
 global_llm_settings:
-  model: "gemini-2.5-flash" # Default LLM model for agents if not specified individually
+  model: "gemini-2.5-flash" # Replace with your desired default model
   temperature: 0.1 # Default temperature for LLM calls
 
 agents:
   - name: "generic_summarizer"
     title: "Generic Summarizer"
-    description: "Summarizes any text content."
+    description: "Summarizes any text content into a single concise paragraph."
     llm_model: "gemini-2.5-flash" # Ensure this model is available in your OpenWebUI setup
-    output_schema: "summary"
+    output_schema: "str" # Changed to str for a simple summary string
     prompt: |
-      Summarize the following content clearly and concisely.
+      Summarize the following content clearly and concisely in a single paragraph.
       Do not refer to "this text" or "the document" in your answer.
+
+      Content to summarize:
+      {text_to_summarize}
 
 workflows:
   - name: "summarize_document"
     description: "Summarize arbitrary input text."
     steps:
-      - agent: "generic_summarizer"
+      - name: summarize_step
+        agent: "generic_summarizer"
         input:
           text_to_summarize: "{{ payload.content }}" # New input key
         output_to: "summary_result" # New output key
 
 templates:
   summarize_document: |
-    # Summary
+    # Document Summary
 
-    {{ context.summary_result.summary }}
+    {{ context.summary_result }} # Access the string directly
 
 defaults:
   max_tokens: 2048
