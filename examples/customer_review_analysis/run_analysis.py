@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Define the path to the configuration file for this example
-CONFIG_FILE_NAME = "config.yaml"
+CONFIG_FILE_NAME = "customer_review_config.yaml"
 CONFIG_FILE_PATH = Path(__file__).resolve().parent / CONFIG_FILE_NAME
 
 # Set the configuration path for the CogniAgents library

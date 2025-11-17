@@ -1,8 +1,0 @@
-
----
-
-### Step 1: The Agent-Only Configuration
-
-First, create a `config.yaml` file that defines your agents, schemas, and prompt components. Notice that we **do not** need the `workflows` or `templates` sections. We are only using this file as a component library for our agents.
-
-**`router-agents-config.yaml`:**
