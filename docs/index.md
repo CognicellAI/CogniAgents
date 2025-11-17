@@ -15,3 +15,4 @@ It is designed to be:
 
 Clone the repository and install the framework in editable mode. This also installs the development dependencies needed for documentation.
 
+OK
