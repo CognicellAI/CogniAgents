@@ -27,10 +27,19 @@ class CodeReviewOutput(BaseModel):
     risk_level: str = Field(description="The overall risk level of the code (e.g., low, medium, high).")
 
 
+class SupportRouteOutput(BaseModel):
+    """
+    Represents the routing decision for a customer support query.
+    """
+    department: str = Field(description="The department to route the query to (e.g., Technical Support, Billing, Sales, General Inquiry).")
+    reason: str = Field(description="A brief explanation for the routing decision.")
+
+
 # Map logical schema names to actual Python types (Pydantic models or str)
 OUTPUT_SCHEMAS: Dict[str, Type[BaseModel] | Type[str]] = {
     "summary": SummaryOutput,
     "sentiment": SentimentOutput,
     "code_review": CodeReviewOutput,
+    "support_route": SupportRouteOutput, # New schema
     # Default to str if a schema name is not found here
 }
