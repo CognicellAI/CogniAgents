@@ -3,67 +3,30 @@ global_llm_settings:
   temperature: 0.1 # Default temperature for LLM calls
 
 agents:
-  - name: review_summarizer
-    description: "Summarizes customer reviews into concise points."
+  - name: "generic_summarizer"
+    title: "Generic Summarizer"
+    description: "Summarizes any text content."
+    llm_model: "gemini-2.5-flash" # Ensure this model is available in your OpenWebUI setup
+    output_schema: "summary"
     prompt: |
-      You are an expert at summarizing customer reviews.
-      Your task is to extract the key positive and negative points from the following customer review.
-      Present them as bullet points under "Positive Aspects" and "Negative Aspects".
-
-      Customer Review:
-      {review_text}
-    llm_model: "gemini-2.5-flash" # Agent-specific model, overrides global_llm_settings.model
-    output_schema: "summary" # Refers to SummaryOutput in cogni_agents/schemas.py
-
-  - name: review_sentiment_analyzer
-    description: "Analyzes the overall sentiment of a customer review."
-    prompt: |
-      You are an expert sentiment analysis AI.
-      Analyze the overall sentiment of the following customer review.
-      Classify it as 'positive', 'negative', or 'neutral'.
-      Also, provide a brief explanation for your classification.
-
-      Customer Review:
-      {review_text}
-    llm_model: "gemini-2.5-flash"
-    output_schema: "sentiment" # Refers to SentimentOutput in cogni_agents/schemas.py
+      Summarize the following content clearly and concisely.
+      Do not refer to "this text" or "the document" in your answer.
 
 workflows:
-  - name: analyze_customer_review
+  - name: "summarize_document"
+    description: "Summarize arbitrary input text."
     steps:
-      - name: summarize_review_step
-        agent: review_summarizer
+      - agent: "generic_summarizer"
         input:
-          review_text: "{{ payload.review_text }}"
-        output_to: summary_result
-
-      - name: analyze_sentiment_step
-        agent: review_sentiment_analyzer
-        input:
-          review_text: "{{ payload.review_text }}"
-        output_to: sentiment_result
+          text_to_summarize: "{{ payload.content }}" # New input key
+        output_to: "summary_result" # New output key
 
 templates:
-  analyze_customer_review: |
-    # Customer Review Analysis Report
-    ---
-    ## Original Review:
+  summarize_document: |
+    # Summary
 
-    {{ payload.review_text }}
+    {{ context.summary_result.summary }}
 
-    ---
-    ## Key Points (Summary):
-    ### Positive Aspects:
-    {% for aspect in context.summary_result.positive_aspects %}
-    - {{ aspect }}
-    {% endfor %}
-
-    ### Negative Aspects:
-    {% for aspect in context.summary_result.negative_aspects %}
-    - {{ aspect }}
-    {% endfor %}
-
-    ---
-    ## Sentiment Analysis:
-    - **Sentiment:** {{ context.sentiment_result.sentiment | capitalize }}
-    - **Rationale:** {{ context.sentiment_result.rationale }}
+defaults:
+  max_tokens: 2048
+  language: "en"
