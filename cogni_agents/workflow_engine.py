@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Any, Dict, Optional
 
-from jinja2 import Template
+from jinja2 import Template, Environment, FileSystemLoader
 
 from .config_loader import get_workflow_configs, get_template
 from .agent_registry import ensure_agents_loaded, get_agent
@@ -73,63 +73,44 @@ async def run_workflow(workflow_name: str, payload: Dict[str, Any]) -> Dict[str,
         raise ValueError(f"Workflow '{workflow_name}' not found.")
 
     logger.info(f"Starting workflow '{workflow_name}' with payload: {payload}")
-    context: Dict[str, Any] = {"payload": payload, "results": {}}
+    # The context will hold payload and results from each step
+    context: Dict[str, Any] = {"payload": payload, "context": {}}
 
     for step in wf.get("steps", []):
         agent_name = step.get("agent")
+        step_name = step.get("name", agent_name) # Use step name if provided, else agent name
         if not agent_name:
-            logger.error(f"Workflow '{workflow_name}' step missing 'agent' field: {step}")
+            logger.error(f"Workflow '{workflow_name}' step '{step_name}' missing 'agent' field: {step}")
             continue
 
-        input_path = step.get("input_from", "payload.content")
-        save_as = step.get("save_as", agent_name)
+        step_input_template = step.get("input", {})
+        output_to = step.get("output_to", step_name)
 
         try:
             agent = get_agent(agent_name)
-            # Resolve input from context via a simple dotted path
-            input_text = _resolve_path(context, input_path)
-            logger.debug(f"Invoking agent '{agent_name}' for step '{save_as}' with input from '{input_path}'.")
 
-            result = await agent.invoke(input_text, context=context)
-            context["results"][save_as] = result
-            logger.debug(f"Agent '{agent_name}' result saved as '{save_as}'.")
+            # Render input template using current context (payload + previous results)
+            # This allows agents to use outputs from previous steps or initial payload
+            env = Environment()
+            rendered_input: Dict[str, Any] = {}
+            for key, value_template in step_input_template.items():
+                template = env.from_string(value_template)
+                # Pass the entire context (payload and previous step results) to the template
+                rendered_input[key] = template.render(payload=context["payload"], context=context["context"])
+
+            logger.debug(f"Invoking agent '{agent_name}' for step '{step_name}' with rendered input: {rendered_input}")
+
+            # Invoke the agent with the rendered input dictionary
+            result = await agent.invoke(rendered_input)
+            context["context"][output_to] = result
+            logger.debug(f"Agent '{agent_name}' result saved as '{output_to}'.")
         except Exception as e:
-            logger.error(f"Error in workflow '{workflow_name}' at step '{agent_name}': {e}")
+            logger.error(f"Error in workflow '{workflow_name}' at step '{step_name}' (agent: {agent_name}): {e}")
             raise # Re-raise to stop workflow execution on error
 
     logger.info(f"Workflow '{workflow_name}' completed.")
     return context
 
-
-def _resolve_path(ctx: Dict[str, Any], path: str) -> Any:
-    """
-    Resolves a value from a dictionary or Pydantic model using a dotted path string.
-
-    Args:
-        ctx: The dictionary (context) to resolve the path from.
-        path: The dotted path string (e.g., "payload.content", "results.summary.summary").
-
-    Returns:
-        The value found at the specified path.
-
-    Raises:
-        KeyError: If any part of the path does not exist in a dictionary.
-        AttributeError: If any part of the path does not exist as an attribute on a Pydantic model.
-        TypeError: If an intermediate part of the path is not a dictionary or Pydantic model.
-    """
-    parts = path.split(".")
-    val: Any = ctx
-    for i, p in enumerate(parts):
-        if isinstance(val, dict):
-            if p in val:
-                val = val[p]
-            else:
-                raise KeyError(f"Path '{path}' not found. Missing key '{p}' at level {i} in context.")
-        elif hasattr(val, p): # Handle Pydantic models
-            val = getattr(val, p)
-        else:
-            raise TypeError(f"Cannot resolve path '{path}'. '{'.'.join(parts[:i])}' is not a dictionary or Pydantic model.")
-    return val
 
 def render_workflow_output(workflow_name: str, context: Dict[str, Any]) -> str:
     """
@@ -138,7 +119,7 @@ def render_workflow_output(workflow_name: str, context: Dict[str, Any]) -> str:
     Args:
         workflow_name: The name of the workflow.
         context: The final context dictionary from the workflow execution,
-                 containing 'payload' and 'results'.
+                 containing 'payload' and 'context' (for step results).
 
     Returns:
         The rendered string output. If no template is found for the workflow,
@@ -147,17 +128,18 @@ def render_workflow_output(workflow_name: str, context: Dict[str, Any]) -> str:
     template_str = get_template(workflow_name)
     if not template_str:
         logger.debug(f"No template found for workflow '{workflow_name}'. Returning string representation of results.")
-        return str(context.get("results", {}))
+        return str(context.get("context", {}))
 
     logger.debug(f"Rendering output for workflow '{workflow_name}' using template.")
     try:
-        template = Template(template_str)
-        # Pass both results and payload to the template context
-        return template.render(results=context.get("results", {}), payload=context.get("payload", {}))
+        # Pass both payload and the accumulated context (results) to the template
+        env = Environment()
+        template = env.from_string(template_str)
+        return template.render(payload=context.get("payload", {}), context=context.get("context", {}))
     except Exception as e:
         logger.error(f"Error rendering template for workflow '{workflow_name}': {e}")
         # Fallback to string representation of results on template rendering error
-        return str(context.get("results", {}))
+        return str(context.get("context", {}))
 
 
 def reload_workflows():
