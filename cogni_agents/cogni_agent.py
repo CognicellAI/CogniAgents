@@ -86,6 +86,7 @@ class CogniAgent:
         # We need to format the prompt using the input_data.
         # Assuming the prompt uses f-string like placeholders, e.g., "Review: {review_text}"
         try:
+            # Format the agent's base prompt with the provided input_data
             formatted_prompt = self.prompt.format(**input_data)
         except KeyError as e:
             logger.error(f"Missing key in input_data for agent '{self.name}' prompt: {e}. Input data: {input_data}")
@@ -93,6 +94,7 @@ class CogniAgent:
 
         logger.debug(f"Invoking agent '{self.name}' with formatted prompt: {formatted_prompt[:200]}...")
         try:
+            # Pass the *formatted_prompt* as the single input string to the PydanticAIAgent's run method
             result = await self.agent.run(formatted_prompt)
             logger.debug(f"Agent '{self.name}' invocation successful.")
             return result.output
