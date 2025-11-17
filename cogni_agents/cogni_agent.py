@@ -2,10 +2,11 @@ import logging
 import os
 from typing import Any, Dict, Type, Optional
 
+from jinja2 import Environment
 from pydantic_ai import Agent as PydanticAIAgent
 from pydantic_ai.models.openai import OpenAIChatModel
 
-from .config_loader import get_global_llm_settings
+from .config_loader import get_global_llm_settings, get_prompt_components
 from .schemas import get_schema
 
 logger = logging.getLogger(__name__)
@@ -19,10 +20,19 @@ class CogniAgent:
         self.name = agent_config["name"]
         self.title = agent_config.get("title", self.name)
         self.description = agent_config.get("description")
-        self.prompt = agent_config["prompt"]
         self.llm_model = agent_config.get("llm_model")
         self.temperature = agent_config.get("temperature")
         self.output_schema_name = agent_config.get("output_schema")
+
+        # Render the prompt using Jinja2 to allow for composable prompt components
+        raw_prompt = agent_config["prompt"]
+        try:
+            env = Environment()
+            template = env.from_string(raw_prompt)
+            self.prompt = template.render(prompt_components=get_prompt_components())
+        except Exception as e:
+            logger.error(f"Error rendering prompt for agent '{self.name}': {e}. Using raw prompt.")
+            self.prompt = raw_prompt
 
         global_llm_settings = get_global_llm_settings()
 

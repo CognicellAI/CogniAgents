@@ -96,6 +96,14 @@ def get_custom_schema_configs() -> Dict[str, str]:
     config = _load_config()
     return config.get("custom_schemas", {})
 
+def get_prompt_components() -> Dict[str, str]:
+    """
+    Retrieves the prompt components from the configuration.
+    Returns a dictionary mapping a component name to its text content.
+    """
+    config = _load_config()
+    return config.get("prompt_components", {})
+
 def get_defaults() -> Dict[str, Any]:
     """
     Retrieves the default settings from the configuration.

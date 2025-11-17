@@ -4,6 +4,17 @@ custom_schemas:
   # The value is the full Python import path to the Pydantic model.
   support_route: "examples.customer_support_router.custom_schemas.SupportRouteOutput"
 
+# New section for reusable prompt snippets
+prompt_components:
+  acme_persona: |
+    You are a helpful and friendly assistant for Acme Inc. named "Cogni".
+    Always be polite and empathetic. Do not make promises you cannot keep.
+    Your responses should be concise and to the point.
+
+  summarize_issue: |
+    First, acknowledge the user's query.
+    Then, briefly summarize the core issue you have identified based on the query.
+
 global_llm_settings:
   model: "gemini-2.5-flash" # Default LLM model for agents if not specified individually
   temperature: 0.1 # Default temperature for LLM calls
@@ -25,9 +36,10 @@ agents:
   - name: technical_support_agent
     description: "Handles technical support queries."
     prompt: |
-      You are a Technical Support Agent. A customer query has been routed to you.
-      Acknowledge the query and state that you are ready to assist with technical issues.
-      Summarize the technical problem identified.
+      {{ prompt_components.acme_persona }}
+
+      You are a Technical Support Agent.
+      {{ prompt_components.summarize_issue }}
 
       Customer Query:
       {customer_query}
@@ -37,9 +49,10 @@ agents:
   - name: billing_agent
     description: "Handles billing-related queries."
     prompt: |
-      You are a Billing Agent. A customer query has been routed to you.
-      Acknowledge the query and state that you are ready to assist with billing inquiries.
-      Summarize the billing issue identified.
+      {{ prompt_components.acme_persona }}
+
+      You are a Billing Agent.
+      {{ prompt_components.summarize_issue }}
 
       Customer Query:
       {customer_query}
@@ -49,9 +62,10 @@ agents:
   - name: sales_agent
     description: "Handles sales and upgrade inquiries."
     prompt: |
-      You are a Sales Agent. A customer query has been routed to you.
-      Acknowledge the query and state that you are ready to assist with sales or upgrade requests.
-      Summarize the sales/upgrade interest identified.
+      {{ prompt_components.acme_persona }}
+
+      You are a Sales Agent.
+      {{ prompt_components.summarize_issue }}
 
       Customer Query:
       {customer_query}
@@ -61,9 +75,10 @@ agents:
   - name: general_inquiry_agent
     description: "Handles general customer inquiries."
     prompt: |
-      You are a General Inquiry Agent. A customer query has been routed to you.
-      Acknowledge the query and state that you are ready to assist with general questions.
-      Summarize the general inquiry identified.
+      {{ prompt_components.acme_persona }}
+
+      You are a General Inquiry Agent.
+      {{ prompt_components.summarize_issue }}
 
       Customer Query:
       {customer_query}
