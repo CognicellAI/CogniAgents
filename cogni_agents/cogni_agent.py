@@ -50,8 +50,9 @@ class CogniAgent:
         chat_model = OpenAIChatModel(model_name=model_name)
 
         # The remaining settings (temperature, etc.) are passed to the agent
+        # The `llm` is passed as a positional argument, not a keyword argument.
         self.agent = PydanticAIAgent(
-            llm=chat_model,
+            chat_model,
             instructions=self._build_instructions(),
             output_type=self.output_type,
             model_settings=final_llm_settings,
