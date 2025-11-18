@@ -30,7 +30,8 @@ agents:
 
       Customer Query:
       {customer_query}
-    llm_model: "gemini-2.5-flash"
+    llm:
+      model: "gemini-2.5-flash"
     output_schema: "support_route" # This now refers to our custom schema
 
   - name: technical_support_agent
@@ -43,7 +44,8 @@ agents:
 
       Customer Query:
       {customer_query}
-    llm_model: "gemini-2.5-flash"
+    llm:
+      model: "gemini-2.5-flash"
     output_schema: "str" # Simple string response
 
   - name: billing_agent
@@ -56,7 +58,8 @@ agents:
 
       Customer Query:
       {customer_query}
-    llm_model: "gemini-2.5-flash"
+    llm:
+      model: "gemini-2.5-flash"
     output_schema: "str"
 
   - name: sales_agent
@@ -69,7 +72,8 @@ agents:
 
       Customer Query:
       {customer_query}
-    llm_model: "gemini-2.5-flash"
+    llm:
+      model: "gemini-2.5-flash"
     output_schema: "str"
 
   - name: general_inquiry_agent
@@ -82,7 +86,8 @@ agents:
 
       Customer Query:
       {customer_query}
-    llm_model: "gemini-2.5-flash"
+    llm:
+      model: "gemini-2.5-flash"
     output_schema: "str"
 
 workflows:
