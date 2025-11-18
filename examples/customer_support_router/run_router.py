@@ -8,7 +8,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from cogni_agents.workflow_engine import run_workflow, render_workflow_output
-from cogni_agents.config_loader import set_config_path, reload_config
+from cogni_agents.config_loader import set_config_path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,
@@ -16,13 +16,12 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # Define the path to the configuration file for this example
-CONFIG_FILE_NAME = "config.yaml" # This should be config.yaml within this directory
+CONFIG_FILE_NAME = "config.yaml"
 CONFIG_FILE_PATH = Path(__file__).resolve().parent / CONFIG_FILE_NAME
 
-# Set the configuration path for the CogniAgents library
+# Set the configuration path for the CogniAgents library.
+# This will automatically trigger a reload of all framework components.
 set_config_path(str(CONFIG_FILE_PATH))
-# Reload config to ensure the new path is used and agents/workflows are loaded
-reload_config()
 logger.info(f"Using configuration from: {CONFIG_FILE_PATH}")
 
 CUSTOMER_QUERIES = [
@@ -74,4 +73,3 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-
