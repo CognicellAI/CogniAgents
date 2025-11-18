@@ -1,35 +1,30 @@
 import asyncio
+import json
 import logging
 import sys
 from pathlib import Path
 
-# Add the project root to the Python path
-# This assumes the script is in `examples/customer_review_analysis/`
-# and the project root is two levels up.
+# Add project root to sys.path to allow absolute imports from cogni_agents
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from cogni_agents.workflow_engine import run_workflow, render_workflow_output
-from cogni_agents.config_loader import set_config_path, reload_config
+from cogni_agents.config_loader import set_config_path
+from cogni_agents.workflow_engine import render_workflow_output, run_workflow
 
-# Configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s] %(message)s')
+# Set up basic logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Define the path to the configuration file for this example
-CONFIG_FILE_NAME = "customer_review_config.yaml"
+CONFIG_FILE_NAME = "config.yaml"
 CONFIG_FILE_PATH = Path(__file__).resolve().parent / CONFIG_FILE_NAME
 
-# Set the configuration path for the CogniAgents library
-set_config_path(str(CONFIG_FILE_PATH))
-# Reload config to ensure the new path is used and agents/workflows are loaded
-reload_config()
-logger.info(f"Using configuration from: {CONFIG_FILE_PATH}")
-
+# The customer review to be analyzed
 CUSTOMER_REVIEW = """
 I've been using the new SuperWidget 3000 for about two weeks now, and I have mixed feelings.
-On one hand, the battery life is absolutely incredible. I can go for days without needing to charge it,
+On one hand, the battery life is absolutely incredible. I can go for days without needing to charge,
 which is a huge improvement over my last device. The screen is also bright and vibrant.
 
 However, the software feels a bit sluggish. There's a noticeable delay when switching between apps,
@@ -38,38 +33,39 @@ at first, though I'm getting used to it. Overall, it's a decent product with som
 but the software experience really needs some polish.
 """
 
+
 async def main():
     """
-    Runs the customer review analysis workflow and prints the output.
+    Runs the 'analyze_customer_review' workflow with a sample customer review.
     """
+    logger.info("Setting config path to: %s", CONFIG_FILE_PATH)
+    set_config_path(str(CONFIG_FILE_PATH))
+
     workflow_name = "analyze_customer_review"
-    payload = {"review_text": CUSTOMER_REVIEW}
+    payload = {"customer_review": CUSTOMER_REVIEW}
 
-    logger.info(f"Starting workflow: '{workflow_name}'...")
+    logger.info("Running workflow '%s' with payload:", workflow_name)
+    print(json.dumps(payload, indent=2))
+    print("-" * 20)
+
     try:
-        # 1. Run the workflow to get the structured results
-        context = await run_workflow(workflow_name, payload)
+        # Run the workflow and get the final context
+        final_context = await run_workflow(workflow_name, payload)
 
-        # 2. Render the final output using the Jinja2 template
-        final_output = render_workflow_output(workflow_name, context)
+        # Render the final output using the workflow's template
+        output = render_workflow_output(workflow_name, final_context)
 
-        # 3. Print the formatted report
-        print("\n" + "="*50)
-        print("   CUSTOMER REVIEW ANALYSIS SHOWCASE")
-        print("="*50 + "\n")
-        print(final_output)
-        print("\n" + "="*50)
+        print("\n" + "=" * 20 + " WORKFLOW OUTPUT " + "=" * 20)
+        print(output)
+        print("=" * 57)
 
     except Exception as e:
-        logger.error(f"An error occurred during the workflow execution: {e}", exc_info=True)
-        print("\n---")
-        print("Workflow execution failed. Please check the logs and ensure your .env file is set up correctly.")
-        print("You need a running LLM service (e.g., OpenWebUI) and your API key configured.")
-        print("Ensure your .env file in the project root has:")
-        print("  OPENAI_BASE_URL=\"http://your-llm-endpoint:port/v1\"")
-        print("  OPENAI_API_KEY=\"your-api-key\"")
-        print("---")
+        logger.error(
+            "An error occurred during workflow execution: %s", e, exc_info=True
+        )
 
-if __name__ == '__main__':
-    # Ensure .env is loaded (handled by cogni_agents.config_loader)
+
+if __name__ == "__main__":
+    # This allows the script to be run directly from the command line:
+    # python examples/customer_review_analysis/run_analysis.py
     asyncio.run(main())
