@@ -1,6 +1,5 @@
 import logging
-import os
-from typing import Any, Dict, Type, Optional
+from typing import Any, Dict, Type
 
 from jinja2 import Environment
 from pydantic_ai import Agent as PydanticAIAgent
@@ -18,10 +17,7 @@ class CogniAgent:
     """
     def __init__(self, agent_config: Dict[str, Any]):
         self.name = agent_config["name"]
-        self.title = agent_config.get("title", self.name)
         self.description = agent_config.get("description")
-        self.llm_model = agent_config.get("llm_model")
-        self.temperature = agent_config.get("temperature")
         self.output_schema_name = agent_config.get("output_schema")
 
         # Render the prompt using Jinja2 to allow for composable prompt components
@@ -34,32 +30,31 @@ class CogniAgent:
             logger.error(f"Error rendering prompt for agent '{self.name}': {e}. Using raw prompt.")
             self.prompt = raw_prompt
 
-        global_llm_settings = get_global_llm_settings()
+        # Merge global and agent-specific LLM settings
+        global_settings = get_global_llm_settings()
+        agent_llm_config = agent_config.get("llm", {})
+        final_llm_settings = {**global_settings, **agent_llm_config}
 
-        # Determine the LLM model to use, prioritizing agent-specific over global
-        model_name = self.llm_model or global_llm_settings.get("model")
-        if model_name is None:
-            raise ValueError(f"Agent '{self.name}' missing LLM model name. "
-                             "Specify 'llm_model' in agent config or 'global_llm_settings.model'.")
+        # Extract model name, which is a special parameter for the constructor
+        model_name = final_llm_settings.pop("model", None)
+        if not model_name:
+            raise ValueError(
+                f"Agent '{self.name}' missing LLM model. "
+                "Specify 'model' in the agent's 'llm' block or in 'global_llm_settings'."
+            )
 
         # Resolve the output type from the dynamic schema registry
         self.output_type: Type[Any] = get_schema(self.output_schema_name)
 
-        # Determine temperature, prioritizing agent-specific over global default
-        temp = (
-            self.temperature
-            if self.temperature is not None
-            else global_llm_settings.get("temperature", 0.1)
-        )
-
-        # Initialize OpenAIChatModel.
+        # Initialize the underlying PydanticAI components
         chat_model = OpenAIChatModel(model_name=model_name)
 
+        # The remaining settings (temperature, etc.) are passed to the agent
         self.agent = PydanticAIAgent(
-            chat_model,
+            llm=chat_model,
             instructions=self._build_instructions(),
             output_type=self.output_type,
-            model_settings={"temperature": temp},
+            model_settings=final_llm_settings,
         )
 
         logger.info(
@@ -103,7 +98,7 @@ class CogniAgent:
             # Pass the *formatted_prompt* as the single input string to the PydanticAIAgent's run method
             result = await self.agent.run(formatted_prompt)
             logger.debug(f"Agent '{self.name}' invocation successful.")
-            return result.output
+            return result
         except Exception as e:
             logger.error(f"Error invoking agent '{self.name}': {e}")
             raise

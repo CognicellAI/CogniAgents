@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from cogni_agents.cogni_agent import CogniAgent
 
 # Use fixtures from conftest.py to mock dependencies
@@ -14,19 +15,22 @@ def test_cogni_agent_initialization(mock_test_config, mock_openai_chat_model_ini
         "output_schema": "str",
         "llm": {"model": "agent-specific-model"}
     }
-    agent = CogniAgent(agent_config)
 
-    assert agent.name == "test_agent"
+    # Patch PydanticAIAgent to inspect the arguments it's called with
+    with patch("cogni_agents.cogni_agent.PydanticAIAgent") as mock_pydantic_agent:
+        agent = CogniAgent(agent_config)
 
-    # Assert that the underlying OpenAIChatModel was initialized with the correctly merged settings.
-    # The mock_openai_chat_model_init fixture patches the constructor.
-    call_args, call_kwargs = mock_openai_chat_model_init.call_args
-    
-    # TODO: The current implementation incorrectly prioritizes global LLM settings over agent-specific ones.
-    # This assertion should be `agent-specific-model` once the merge logic in CogniAgent.__init__ is corrected.
-    assert call_kwargs.get("model_name") == "global-default-model"
-    # Temperature should be inherited from the mocked global settings
-    assert call_kwargs.get("temperature") == 0.1
+        assert agent.name == "test_agent"
+
+        # Assert that OpenAIChatModel was initialized with the correct, overridden model name
+        mock_openai_chat_model_init.assert_called_with(model_name="agent-specific-model")
+
+        # Assert that PydanticAIAgent was initialized with the correct remaining settings
+        call_args, call_kwargs = mock_pydantic_agent.call_args
+        
+        # The global settings fixture provides temperature: 0.1
+        # The agent-specific config does not, so it should be inherited.
+        assert call_kwargs.get("model_settings") == {"temperature": 0.1}
 
 def test_cogni_agent_build_instructions(mock_test_config, mock_openai_chat_model_init):
     """
