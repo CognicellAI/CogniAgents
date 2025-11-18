@@ -65,7 +65,7 @@ def mock_pydantic_ai_agent_run():
         # The `run` method of PydanticAIAgent returns the output object directly.
         if self.output_type == SummaryOutput:
             return SummaryOutput(
-                summary=f"Mocked summary of: {input_text[:20]}...",
+                summary="Mocked summary",
                 positive_aspects=["Mocked positive aspect"],
                 negative_aspects=["Mocked negative aspect"],
             )

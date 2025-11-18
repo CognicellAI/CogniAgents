@@ -23,8 +23,8 @@ async def test_e2e_workflow_with_mocked_llm():
     # 1. Check the output of the first agent (summarizer_agent)
     summary_result = final_context["context"]["summary_result"]
     assert isinstance(summary_result, SummaryOutput)
-    # The mock returns a specific format we can check for
-    assert "Mocked summary of: Summarize this:..." in summary_result.summary
+    # The mock now returns a simple, static string.
+    assert summary_result.summary == "Mocked summary"
 
     # 2. Check the output of the second agent (sentiment_agent)
     # This step runs conditionally, so its presence is a test of the 'when' clause
@@ -36,5 +36,5 @@ async def test_e2e_workflow_with_mocked_llm():
     # --- Assertions on the rendered output ---
     output = render_workflow_output(workflow_name, final_context)
 
-    assert "Summary: Mocked summary of: Summarize this:..." in output
+    assert "Summary: Mocked summary" in output
     assert "Sentiment: positive" in output
