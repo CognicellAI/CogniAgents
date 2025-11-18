@@ -2,6 +2,9 @@ global_llm_settings:
   model: "test-model"
   temperature: 0.5
 
+custom_schemas:
+  support_route_schema: "examples.customer_support_router.custom_schemas.SupportRouteOutput"
+
 prompt_components:
   politeness: "Be polite."
 
