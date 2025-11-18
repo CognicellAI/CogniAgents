@@ -22,8 +22,9 @@ def test_cogni_agent_initialization(mock_test_config, mock_openai_chat_model_ini
     # The mock_openai_chat_model_init fixture patches the constructor.
     call_args, call_kwargs = mock_openai_chat_model_init.call_args
     
-    # Agent-specific model should override the global default
-    assert call_kwargs.get("model") == "agent-specific-model"
+    # Agent-specific model should override the global default.
+    # The underlying library uses 'model_name'.
+    assert call_kwargs.get("model_name") == "agent-specific-model"
     # Temperature should be inherited from the mocked global settings
     assert call_kwargs.get("temperature") == 0.1
 
