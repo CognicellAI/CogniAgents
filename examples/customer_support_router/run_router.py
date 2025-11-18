@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Add the project root to the Python path
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -14,6 +15,8 @@ from cogni_agents.config_loader import set_config_path
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
+
+load_dotenv()
 
 # Define the path to the configuration file for this example
 CONFIG_FILE_NAME = "config.yaml"

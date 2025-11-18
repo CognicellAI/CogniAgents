@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Add project root to sys.path to allow absolute imports from cogni_agents
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -16,6 +17,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+load_dotenv()
 
 # Define the path to the configuration file for this example
 CONFIG_FILE_NAME = "config.yaml"
