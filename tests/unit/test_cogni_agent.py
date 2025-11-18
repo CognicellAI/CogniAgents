@@ -4,7 +4,7 @@ from cogni_agents.cogni_agent import CogniAgent
 # Use fixtures from conftest.py to mock dependencies
 pytestmark = pytest.mark.usefixtures("mock_global_llm_settings", "mock_openai_chat_model_init")
 
-def test_cogni_agent_initialization():
+def test_cogni_agent_initialization(mock_test_config):
     """
     Tests that a CogniAgent initializes correctly, merging global and agent-specific settings.
     """

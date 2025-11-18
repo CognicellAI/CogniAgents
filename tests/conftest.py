@@ -6,7 +6,7 @@ import os
 from cogni_agents.config_loader import reload_config
 from cogni_agents.agent_registry import reload_agents
 from cogni_agents.workflow_engine import reload_workflows
-from cogni_agents.schemas import SummaryOutput, SentimentOutput
+from cogni_agents.schemas import reload_schemas, SummaryOutput, SentimentOutput
 from pydantic_ai.models.openai import OpenAIChatModel
 
 # Path to the test configuration file
@@ -14,12 +14,21 @@ TEST_CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), "test_config.yam
 
 @pytest.fixture(autouse=True)
 def reset_module_state_after_test():
-    """Ensures module states are reset after each test runs by calling reload functions."""
+    """
+    Ensures module states are reset after each test runs by calling reload functions.
+    This fixture patches config loading during teardown to prevent errors.
+    """
     yield
-    # These functions reset the internal state of each module
-    reload_config()
-    reload_agents()
-    reload_workflows()
+    # In teardown, we want to reset all modules. However, calling reload_config()
+    # can fail if the test-specific config path (set by monkeypatch) has been
+    # torn down, leading to a FileNotFoundError.
+    # We patch _load_config to prevent this file access during teardown,
+    # ensuring a clean reset without side effects.
+    with patch("cogni_agents.config_loader._load_config", return_value={}):
+        reload_config()
+        reload_schemas()
+        reload_agents()
+        reload_workflows()
 
 @pytest.fixture
 def mock_test_config(monkeypatch):
@@ -28,8 +37,9 @@ def mock_test_config(monkeypatch):
     to ensure the test config is loaded for the test.
     """
     monkeypatch.setenv("COGNIA_CONFIG_PATH", TEST_CONFIG_FILE_PATH)
-    # Reload config to pick up the new env var.
+    # Reload config and schemas to pick up the new env var and custom schemas.
     reload_config()
+    reload_schemas()
 
 @pytest.fixture
 def mock_global_llm_settings():
@@ -52,15 +62,17 @@ def mock_pydantic_ai_agent_run():
     based on the `output_type` of the agent instance.
     """
     async def side_effect(self, input_text: str): # `self` here is the PydanticAIAgent instance
-        mock_result = MagicMock()
-        # We can access the output_type from the instance
+        # The `run` method of PydanticAIAgent returns the output object directly.
         if self.output_type == SummaryOutput:
-            mock_result.output = SummaryOutput(summary=f"Mocked summary of: {input_text[:20]}...")
+            return SummaryOutput(
+                summary=f"Mocked summary of: {input_text[:20]}...",
+                positive_aspects=["Mocked positive aspect"],
+                negative_aspects=["Mocked negative aspect"],
+            )
         elif self.output_type == SentimentOutput:
-            mock_result.output = SentimentOutput(sentiment="positive", rationale="Mocked rationale")
+            return SentimentOutput(sentiment="positive", rationale="Mocked rationale")
         else: # str
-            mock_result.output = f"Mocked generic output for: {input_text[:20]}..."
-        return mock_result
+            return f"Mocked generic output for: {input_text[:20]}..."
 
     # Patch the `run` method on the class prototype using autospec=True
     # This ensures that the mock has the correct signature and `self` is passed.
