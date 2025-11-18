@@ -28,12 +28,21 @@ def set_config_path(path: str):
 
 def _get_current_config_path() -> str:
     """
-    Determines the current configuration file path, prioritizing `_config_file_path`
-    then `COGNIA_CONFIG_PATH` environment variable, then the default 'config.yaml'.
+    Determines the current configuration file path.
+
+    The path must be specified either by calling `set_config_path()` programmatically
+    or by setting the `COGNIA_CONFIG_PATH` environment variable.
+
+    Raises:
+        FileNotFoundError: If the configuration path is not specified.
     """
-    if _config_file_path:
-        return _config_file_path
-    return os.getenv("COGNIA_CONFIG_PATH", "config.yaml")
+    path = _config_file_path or os.getenv("COGNIA_CONFIG_PATH")
+    if not path:
+        raise FileNotFoundError(
+            "Configuration file path not specified. Please set it using "
+            "set_config_path() or the COGNIA_CONFIG_PATH environment variable."
+        )
+    return path
 
 def _load_config() -> Dict[str, Any]:
     """
