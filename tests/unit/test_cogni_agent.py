@@ -2,9 +2,9 @@ import pytest
 from cogni_agents.cogni_agent import CogniAgent
 
 # Use fixtures from conftest.py to mock dependencies
-pytestmark = pytest.mark.usefixtures("mock_global_llm_settings", "mock_openai_chat_model_init")
+pytestmark = pytest.mark.usefixtures("mock_global_llm_settings")
 
-def test_cogni_agent_initialization(mock_test_config):
+def test_cogni_agent_initialization(mock_test_config, mock_openai_chat_model_init):
     """
     Tests that a CogniAgent initializes correctly, merging global and agent-specific settings.
     """
@@ -17,12 +17,17 @@ def test_cogni_agent_initialization(mock_test_config):
     agent = CogniAgent(agent_config)
 
     assert agent.name == "test_agent"
-    # Agent-specific model should override the global default
-    assert agent.llm_settings["model"] == "agent-specific-model"
-    # Temperature should be inherited from the mocked global settings
-    assert agent.llm_settings["temperature"] == 0.1
 
-def test_cogni_agent_build_instructions(mock_test_config):
+    # Assert that the underlying OpenAIChatModel was initialized with the correctly merged settings.
+    # The mock_openai_chat_model_init fixture patches the constructor.
+    call_args, call_kwargs = mock_openai_chat_model_init.call_args
+    
+    # Agent-specific model should override the global default
+    assert call_kwargs.get("model") == "agent-specific-model"
+    # Temperature should be inherited from the mocked global settings
+    assert call_kwargs.get("temperature") == 0.1
+
+def test_cogni_agent_build_instructions(mock_test_config, mock_openai_chat_model_init):
     """
     Tests that the agent's instructions are correctly built by rendering prompt components.
     """
