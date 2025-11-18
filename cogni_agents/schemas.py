@@ -16,6 +16,7 @@ class SummaryOutput(BaseModel):
     """
     Represents a summarized text output, specifically for customer reviews.
     """
+    summary: str = Field(description="A concise summary of the entire text.")
     positive_aspects: List[str] = Field(default_factory=list, description="List of positive points identified in the review.")
     negative_aspects: List[str] = Field(default_factory=list, description="List of negative points identified in the review.")
 
