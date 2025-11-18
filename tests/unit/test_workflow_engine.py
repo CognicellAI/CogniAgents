@@ -28,13 +28,14 @@ async def test_workflow_step_execution_and_context(mock_test_config):
         # Assertions
         assert mock_agent_invoke.call_count == 2
 
-        # Check first agent call by inspecting keyword arguments
-        call1_kwargs = mock_agent_invoke.call_args_list[0].kwargs
-        assert call1_kwargs == {"input_data": {"text": "some text"}}
+        # Check first agent call by inspecting positional arguments
+        # args[0] is the `self` instance of CogniAgent, args[1] is the input_data dict
+        call1_args = mock_agent_invoke.call_args_list[0].args
+        assert call1_args[1] == {"text": "some text"}
 
         # Check second agent call (verifies conditional step ran)
-        call2_kwargs = mock_agent_invoke.call_args_list[1].kwargs
-        assert call2_kwargs == {"input_data": {"text": "some text"}}
+        call2_args = mock_agent_invoke.call_args_list[1].args
+        assert call2_args[1] == {"text": "some text"}
 
         # Check final context state
         assert final_context["context"]["summary_result"] == mock_summary_output
