@@ -1,0 +1,90 @@
+# This is an example configuration file for the CogniAgents framework.
+# It demonstrates all available configuration keys and their usage.
+
+# --- Global LLM Settings ---
+# These settings are inherited by all agents unless overridden.
+global_llm_settings:
+  model: "gemini-2.5-flash"
+  temperature: 0.2
+  max_tokens: 1024
+
+# --- Custom Schemas ---
+# Register custom Pydantic models to be used as structured outputs for agents.
+# The key is the short name you'll use in agent definitions.
+# The value is the full Python import path: 'path.to.module:ClassName'.
+custom_schemas:
+  support_ticket: "your_project.schemas:SupportTicketOutput"
+
+# --- Prompt Components ---
+# Reusable snippets of text that can be included in agent prompts.
+# This helps keep prompts DRY (Don't Repeat Yourself).
+prompt_components:
+  polite_tone: "Your response must be polite, professional, and empathetic."
+  json_instructions: "Ensure your output is a valid JSON object matching the required schema."
+
+# --- Agent Definitions ---
+# A list of all AI agents in the system.
+agents:
+  # A simple agent that uses global settings and a built-in schema.
+  - name: sentiment_analyzer
+    description: "Analyzes the sentiment of a given text."
+    prompt: |
+      Analyze the sentiment of the following text and provide a rationale.
+      Text: {text_to_analyze}
+    output_schema: "sentiment" # Uses the built-in 'sentiment' schema
+
+  # An agent that overrides some global LLM settings.
+  - name: creative_writer
+    description: "A creative agent for brainstorming."
+    prompt: "Write three taglines for a new brand of coffee. Details: {details}"
+    llm:
+      model: "gemini-3.0-pro" # Overrides the global model
+      temperature: 0.9      # Overrides the global temperature
+    output_schema: "str" # Uses the built-in 'str' schema for a simple string output
+
+  # An agent that uses a custom schema and a prompt component.
+  - name: ticket_classifier
+    description: "Classifies a support ticket and assigns priority."
+    prompt: |
+      Classify the following support ticket.
+      {{ prompt_components.polite_tone }}
+      {{ prompt_components.json_instructions }}
+      Ticket: {ticket_text}
+    output_schema: "support_ticket" # Uses the custom schema defined above
+
+# --- Workflow Definitions ---
+# A list of multi-step processes that orchestrate agents.
+workflows:
+  - name: full_text_analysis
+    description: "Runs a complete analysis on a piece of text."
+    steps:
+      # Step 1: Always runs. Takes input from the initial payload.
+      - name: analyze_sentiment
+        agent: sentiment_analyzer
+        input:
+          text_to_analyze: "{{ payload.text }}"
+        output_to: sentiment_result
+
+      # Step 2: Conditional step. Only runs if the sentiment from the previous step is 'negative'.
+      - name: classify_negative_ticket
+        agent: ticket_classifier
+        input:
+          ticket_text: "{{ payload.text }}"
+        output_to: ticket_details
+        when: "{{ context.sentiment_result.sentiment == 'negative' }}"
+
+# --- Output Templates ---
+# Jinja2 templates for formatting the final output of a workflow.
+# The key must match the 'name' of a workflow.
+templates:
+  full_text_analysis: |
+    --- Analysis Report ---
+    Original Text: {{ payload.text }}
+    Sentiment: {{ context.sentiment_result.sentiment }}
+    Rationale: {{ context.sentiment_result.rationale }}
+
+    {% if context.ticket_details %}
+    --- Negative Feedback Triage ---
+    Assigned Department: {{ context.ticket_details.department }}
+    Priority: {{ context.ticket_details.priority }}
+    {% endif %}
