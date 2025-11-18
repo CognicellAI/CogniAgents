@@ -1,0 +1,46 @@
+global_llm_settings:
+  model: "test-model"
+  temperature: 0.5
+
+prompt_components:
+  politeness: "Be polite."
+
+agents:
+  - name: "summarizer_agent"
+    description: "Summarizes text."
+    prompt: "Summarize this: {text}"
+    output_schema: "summary" # Matches mock in conftest.py
+
+  - name: "sentiment_agent"
+    description: "Analyzes sentiment."
+    prompt: "Analyze sentiment for: {text}. {{ prompt_components.politeness }}"
+    output_schema: "sentiment" # Matches mock in conftest.py
+    llm:
+      temperature: 0.0 # Override global setting
+
+  - name: "responder_agent"
+    description: "Responds to text."
+    prompt: "Respond to: {text}"
+    output_schema: "str" # Matches mock in conftest.py
+
+workflows:
+  - name: "test_analysis_workflow"
+    description: "A workflow for testing analysis."
+    steps:
+      - name: "summarize_step"
+        agent: "summarizer_agent"
+        input:
+          text: "{{ payload.query }}"
+        output_to: "summary_result"
+
+      - name: "sentiment_step"
+        agent: "sentiment_agent"
+        input:
+          text: "{{ payload.query }}"
+        output_to: "sentiment_result"
+        when: "'Mocked summary' in context.summary_result.summary" # Conditional step
+
+templates:
+  test_analysis_workflow: |
+    Summary: {{ context.summary_result.summary }}
+    Sentiment: {{ context.sentiment_result.sentiment }}
