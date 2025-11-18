@@ -15,13 +15,16 @@ _config: Optional[Dict[str, Any]] = None
 
 def set_config_path(path: str):
     """
-    Sets the path to the configuration file. This can be used by example scripts
-    or tests to dynamically specify which config file to load.
+    Sets the path to the configuration file and triggers a full reload of all
+    framework components (config, schemas, agents, workflows).
+
+    This should be called before any other framework functions if using a
+    non-default config path programmatically.
     """
-    global _config_file_path, _config
+    global _config_file_path
     if _config_file_path != path:
         _config_file_path = path
-        _config = None  # Invalidate cache to force reload with new path
+        reload_config()
 
 def _get_current_config_path() -> str:
     """
