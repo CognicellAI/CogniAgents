@@ -2,8 +2,8 @@
 site_name: CogniAgents Framework
 site_description: A YAML-driven framework for creating and managing AI agents.
 site_author: CogniAgents Team
-repo_url: https://github.com/your-username/CogniAgents # Replace with your actual repo URL
-repo_name: your-username/CogniAgents
+repo_url: https://github.com/CognicellAI/CogniAgents # Replace with your actual repo URL
+repo_name: CognicellAI/CogniAgents
 
 # Theme Configuration
 theme:
