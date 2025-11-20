@@ -1,7 +1,7 @@
 # Project Information
 site_name: CogniAgents Framework
-site_description: A generic, config-driven agentic framework.
-site_author: Your Name
+site_description: A YAML-driven framework for creating and managing AI agents.
+site_author: CogniAgents Team
 repo_url: https://github.com/your-username/CogniAgents # Replace with your actual repo URL
 repo_name: your-username/CogniAgents
 
@@ -34,8 +34,8 @@ nav:
   - Home: index.md
   - Core Concepts: core_concepts.md
   - Guides:
-    - Creating a Workflow: guides/creating_a_workflow.md
-    - External Orchestrators (LangGraph): guides/external_workflows.md
+    - Adding Tools: guides/adding_tools.md
+    - Built-in Schemas: guides/built_in_schemas.md
   - API Reference: api_reference.md
   - Contributing: contributing.md
 

@@ -5,7 +5,6 @@ import os
 
 from cogni_agents.config_loader import reload_config
 from cogni_agents.agent_registry import reload_agents
-from cogni_agents.workflow_engine import reload_workflows
 from cogni_agents.schemas import reload_schemas, SummaryOutput, SentimentOutput
 from pydantic_ai.models.openai import OpenAIChatModel
 
@@ -28,7 +27,6 @@ def reset_module_state_after_test():
         reload_config()
         reload_schemas()
         reload_agents()
-        reload_workflows()
 
 @pytest.fixture
 def mock_test_config(monkeypatch):

@@ -9,7 +9,6 @@ dependencies = [
     "PyYAML>=6.0",
     "pydantic>=2.0",
     "pydantic-ai>=0.1.0", # Assuming a recent version that supports Pydantic v2
-    "Jinja2>=3.1.0",
     "python-dotenv>=1.0.0", # Added for loading .env files
 ]
 requires-python = ">=3.9"

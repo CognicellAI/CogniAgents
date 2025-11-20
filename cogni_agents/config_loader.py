@@ -80,26 +80,6 @@ def get_agent_configs() -> List[Dict[str, Any]]:
         raise ValueError("Agents configuration must be a list.")
     return agents
 
-def get_workflow_configs() -> List[Dict[str, Any]]:
-    """
-    Retrieves the list of workflow configurations.
-    """
-    config = _load_config()
-    workflows = config.get("workflows", [])
-    if not isinstance(workflows, list):
-        raise ValueError("Workflows configuration must be a list.")
-    return workflows
-
-def get_template(workflow_name: str) -> Optional[str]:
-    """
-    Retrieves a specific template string by workflow name.
-    """
-    config = _load_config()
-    templates = config.get("templates", {})
-    if not isinstance(templates, dict):
-        raise ValueError("Templates configuration must be a dictionary.")
-    return templates.get(workflow_name)
-
 def get_custom_schema_configs() -> Dict[str, str]:
     """
     Retrieves the custom schema mapping from the configuration.
@@ -107,6 +87,22 @@ def get_custom_schema_configs() -> Dict[str, str]:
     """
     config = _load_config()
     return config.get("custom_schemas", {})
+
+def get_mcp_server_configs() -> Dict[str, Dict[str, Any]]:
+    """
+    Retrieves the mcp server mapping from the configuration.
+    Returns a dictionary mapping a mcp server name to its import path.
+    """
+    config = _load_config()
+    return config.get("mcp_servers", {})
+
+def get_custom_tool_configs() -> Dict[str, str]:
+    """
+    Retrieves the custom tool mapping from the configuration.
+    Returns a dictionary mapping a tool name to its import path.
+    """
+    config = _load_config()
+    return config.get("custom_tools", {})
 
 def get_prompt_components() -> Dict[str, str]:
     """
@@ -137,10 +133,12 @@ def reload_config():
 
     # Import dynamically to avoid circular dependencies
     from .agent_registry import reload_agents
-    from .workflow_engine import reload_workflows
     from .schemas import reload_schemas
 
     # Invalidate other cached modules
     reload_schemas()
     reload_agents()
-    reload_workflows()
+    from .tool_registry import reload_tools
+    reload_tools()
+    from .tool_registry import reload_tools
+    reload_tools()

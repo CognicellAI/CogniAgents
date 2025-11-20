@@ -3,7 +3,12 @@ from pydantic import BaseModel
 from unittest.mock import patch
 
 from cogni_agents.schemas import get_schema, SummaryOutput, SentimentOutput
-from examples.customer_support_router.custom_schemas import SupportRouteOutput
+from pydantic import BaseModel, Field
+
+# A mock schema for testing
+class MockOutput(BaseModel):
+    field1: str = Field(description="Field 1")
+    field2: int = Field(description="Field 2")
 
 
 def test_get_built_in_schemas():
@@ -30,9 +35,9 @@ def test_get_custom_schema(mock_test_config):
     """Tests loading and retrieving a custom schema defined in the config."""
     # The mock_test_config fixture handles loading the test config,
     # which now includes a custom schema definition.
-    schema = get_schema("support_route_schema")
+    schema = get_schema("mock_schema")
 
     assert issubclass(schema, BaseModel)
-    assert schema == SupportRouteOutput
-    assert "department" in schema.model_fields
-    assert "reason" in schema.model_fields
+    assert schema == MockOutput
+    assert "field1" in schema.model_fields
+    assert "field2" in schema.model_fields

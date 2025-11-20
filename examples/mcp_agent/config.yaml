@@ -1,0 +1,16 @@
+global_llm_settings:
+  model: "gemini-2.5-flash"
+
+mcp_servers:
+  fetch_server:
+    type: "streamable-http"
+    url: "https://remote.mcpservers.org/fetch/mcp"
+
+agents:
+  - name: mcp_fetch_agent
+    description: "An agent that can fetch content from a URL using an MCP server."
+    prompt: |
+      Fetch the content of {url}
+    toolsets:
+      - fetch_server
+    output_schema: "string"

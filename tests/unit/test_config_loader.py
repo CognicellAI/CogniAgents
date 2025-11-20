@@ -1,6 +1,6 @@
 from cogni_agents.config_loader import (
     get_agent_configs,
-    get_workflow_configs,
+
     get_prompt_components,
     get_global_llm_settings,
 )
@@ -17,11 +17,7 @@ def test_load_and_get_config_components(mock_test_config):
     assert agents[0]["name"] == "summarizer_agent"
     assert agents[1]["llm"]["temperature"] == 0.0 # Test override
 
-    # Test workflow configs
-    workflows = get_workflow_configs()
-    assert isinstance(workflows, list)
-    assert len(workflows) == 1
-    assert workflows[0]["name"] == "test_analysis_workflow"
+
 
     # Test prompt components
     components = get_prompt_components()

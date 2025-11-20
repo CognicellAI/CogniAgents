@@ -1,0 +1,17 @@
+global_llm_settings:
+  model: "gemini-2.5-flash"
+
+custom_schemas:
+  WeatherReport: "examples.weather_agent.schemas.WeatherReport"
+
+custom_tools:
+  weather_tool: "examples.weather_agent.tools:get_current_weather"
+
+agents:
+  - name: weather_agent
+    description: "An agent that can retrieve the current weather and formats it into a WeatherReport."
+    prompt: |
+      What is the current weather in {location}? Use the weather_tool and format the output using the WeatherReport schema.
+    tools:
+      - weather_tool
+    output_schema: "WeatherReport"

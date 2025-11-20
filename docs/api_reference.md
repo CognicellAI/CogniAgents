@@ -10,11 +10,6 @@ This section provides auto-generated API documentation for the core modules of t
 
 ---
 
-### `cogni_agents.workflow_engine`
-
-::: cogni_agents.workflow_engine
-
----
 
 ### `cogni_agents.config_loader`
 
