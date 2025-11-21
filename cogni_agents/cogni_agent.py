@@ -56,17 +56,18 @@ class CogniAgent:
         toolset_names = agent_config.get("toolsets", [])
 
         # Initialize the underlying PydanticAI components
-        chat_model = OpenAIChatModel(model_name=model_name)
+        self.chat_model = OpenAIChatModel(model_name=model_name)
+        self.tools, self.toolsets = tools, toolsets
+        self.model_settings = cast(Dict[str, Any], final_llm_settings)
 
-        # The remaining settings (temperature, etc.) are passed to the agent
         # The `llm` (chat_model) is passed as a positional argument, not a keyword argument.
         self.agent = PydanticAIAgent(
-            chat_model,
+            self.chat_model,
             instructions=self._build_instructions(),
             output_type=self.output_type,
-            tools=tools,
-            toolsets=toolsets,
-            model_settings=cast(Dict[str, Any], final_llm_settings),
+            tools=self.tools,
+            toolsets=self.toolsets,
+            model_settings=self.model_settings,
         )
 
         logger.info(
@@ -134,10 +135,22 @@ class CogniAgent:
         """
         formatted_prompt = self._format_prompt(self.raw_prompt, get_prompt_components(), input_data)
 
-        logger.debug(f"Invoking agent '{self.name}' with formatted prompt: {formatted_prompt[:200]}...")
+        # Re-initialize the agent with the formatted prompt on every invocation
+        # This is necessary to ensure the agent has the correct instructions
+        # and can properly extract variables from the prompt.
+        runtime_agent = PydanticAIAgent(
+            self.chat_model,
+            instructions=formatted_prompt,
+            output_type=self.output_type,
+            tools=self.tools,
+            toolsets=self.toolsets,
+            model_settings=self.model_settings,
+        )
+
+        logger.debug(f"Invoking agent '{self.name}' with formatted prompt: {{formatted_prompt[:200]}}...")
         try:
-            # Pass the *formatted_prompt* as the single input string to the PydanticAIAgent's run method
-            result = await self.agent.run(formatted_prompt)
+            # Pass a dummy empty string because the instructions now contain the full prompt
+            result = await runtime_agent.run("")
             logger.debug(f"Agent '{self.name}' invocation successful.")
             return result
         except Exception as e:
